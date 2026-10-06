@@ -1,3 +1,5 @@
+import base64
+import csv
 import datetime as dt
 import json
 import re
@@ -98,14 +100,102 @@ class CliTest(unittest.TestCase):
             self.assertEqual(bd.main(["--register", str(SAMPLE), "--out", str(out), "--today", "2026-10-07"]), 0)
             self.assertTrue(out.read_text(encoding="utf-8").startswith("<!doctype html>"))
 
-    def test_missing_columns(self):
+    def test_missing_columns_render_blank(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "r.csv"
             p.write_text("contract_id,title\nC-1,x\n", encoding="utf-8")
-            self.assertEqual(bd.main(["--register", str(p), "--out", str(Path(d) / "o.html")]), 1)
+            self.assertEqual(bd.main(["--register", str(p), "--out", str(Path(d) / "o.html")]), 0)
+            payload = bd.build_payload(p, TODAY)
+            self.assertEqual(payload["rows"][0]["title"], "x")
+            self.assertNotIn("status", payload["rows"][0])
+            self.assertIsNone(payload["rows"][0]["days_to_end"])
 
     def test_bad_today(self):
         self.assertEqual(bd.main(["--register", str(SAMPLE), "--today", "abc"]), 2)
+
+
+class SchemaAndLogoTest(unittest.TestCase):
+    def test_schema_labels_and_added_fields(self):
+        with tempfile.TemporaryDirectory() as d:
+            schema = json.loads(bd.DEFAULT_FIELDS.read_text())
+            next(f for f in schema["fields"] if f["name"] == "title")["label"] = "契約名稱"
+            schema["fields"] = [f for f in schema["fields"]
+                                if f["name"] not in {"contract_language", "dispute_resolution"}]
+            schema["fields"].extend([
+                {"name": "contract_language", "label": "合約語言", "type": "string"},
+                {"name": "dispute_resolution", "label": "爭議解決", "type": "string"},
+                {"name": "custom_field", "label": "新增欄位", "type": "string"},
+            ])
+            p = Path(d) / "fields.json"
+            p.write_text(json.dumps(schema))
+            payload = bd.build_payload(SAMPLE, TODAY, p)
+            labels = {f["name"]: f["label"] for f in payload["columns"]}
+            self.assertEqual(labels["title"], "契約名稱")
+            self.assertEqual(labels["contract_language"], "合約語言")
+            self.assertEqual(labels["dispute_resolution"], "爭議解決")
+            self.assertIn("custom_field", {f["name"] for f in payload["fields"]})
+            self.assertEqual(payload["rows"][0].get("contract_language", ""), "")
+
+    def test_governing_law_filter_uses_schema_label(self):
+        payload = bd.build_payload(SAMPLE, TODAY)
+        f = next(f for f in payload["filters"] if f["key"] == "governing_law")
+        self.assertEqual(f["label"], "準據法")
+        self.assertIn("中華民國法", f["options"])
+
+    def test_empty_register(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "empty.csv"
+            p.write_text("contract_id,title\n")
+            self.assertEqual(bd.build_payload(p, TODAY)["rows"], [])
+
+    def test_short_row_and_missing_id(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "short.csv"
+            p.write_text("title,status,end_date\nOnly title\n")
+            payload = bd.build_payload(p, TODAY)
+            self.assertEqual(len(payload["rows"]), 1)
+            self.assertEqual(payload["rows"][0]["end_date"], "")
+
+    def test_source_refs_are_preserved_and_script_safe(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "refs.csv"
+            refs = '{"title":{"page":2,"quote":"</script><img src=x>"}}'
+            with p.open("w", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=["contract_id", "source_refs"])
+                writer.writeheader()
+                writer.writerow({"contract_id": "C-1", "source_refs": refs})
+            payload = bd.build_payload(p, TODAY)
+            out = bd.render(payload)
+            embedded = re.search(r'<script id="data" type="application/json">(.*?)</script>', out, re.S).group(1)
+            self.assertEqual(json.loads(embedded)["rows"][0]["source_refs"], refs)
+            self.assertEqual(out.count("</script>"), 2)
+
+    def test_logo_is_embedded_only_when_requested(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "generic.png"
+            data = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aS1kAAAAASUVORK5CYII=")
+            p.write_bytes(data)
+            logo = bd.logo_data_uri(p)
+            self.assertEqual(base64.b64decode(logo.split(",", 1)[1]), data)
+            payload = bd.build_payload(SAMPLE, TODAY)
+            self.assertNotIn('<img src=', bd.render(payload))
+            self.assertIn('<img src="data:image/png;base64,', bd.render(payload, logo))
+            out = Path(d) / "logo.html"
+            self.assertEqual(bd.main(["--register", str(SAMPLE), "--out", str(out), "--logo", str(p)]), 0)
+            self.assertIn(logo, out.read_text())
+
+    def test_unsupported_logo_reports_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "text.png"
+            p.write_text("not an image")
+            out = Path(d) / "out.html"
+            self.assertEqual(bd.main(["--register", str(SAMPLE), "--out", str(out), "--logo", str(p)]), 1)
+            self.assertFalse(out.exists())
+
+    def test_missing_logo_reports_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(bd.main(["--register", str(SAMPLE), "--out", str(Path(d)/"out.html"),
+                                      "--logo", str(Path(d)/"missing.png")]), 1)
 
 
 if __name__ == "__main__":
