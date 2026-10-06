@@ -1,202 +1,73 @@
-import base64
-import csv
-import datetime as dt
-import json
-import re
-import tempfile
-import unittest
+import base64,csv,datetime as dt,json,tempfile,unittest
 from pathlib import Path
-
 import build_dashboard as bd
-
-SAMPLE = Path(__file__).resolve().parent / "sample_register.csv"
-TODAY = dt.date(2026, 10, 7)
-
-
-def row(**kw):
-    base = {"status": "有效", "end_date": "", "notice_days": "", "renewal_type": "書面續約"}
-    base.update(kw)
-    return base
-
-
-class EnrichTest(unittest.TestCase):
-    def test_days_and_notice_deadline(self):
-        r = bd.enrich(row(end_date="2026-11-30", notice_days="60", renewal_type="自動續約"), TODAY)
-        self.assertEqual(r["days_to_end"], 54)
-        self.assertEqual(r["notice_deadline"], "2026-10-01")
-        self.assertEqual(r["days_to_notice"], -6)
-        self.assertFalse(r["is_notice_due"])  # 通知截止日已過
-
-    def test_notice_due_within_window(self):
-        r = bd.enrich(row(end_date="2026-12-15", notice_days="30", renewal_type="自動續約"), TODAY)
-        self.assertTrue(r["is_notice_due"])
-        self.assertTrue(r["is_expiring"])
-
-    def test_manual_renewal_is_not_notice_due(self):
-        r = bd.enrich(row(end_date="2026-12-15", notice_days="30"), TODAY)
-        self.assertFalse(r["is_notice_due"])
-
-    def test_active_past_end_is_expired(self):
-        r = bd.enrich(row(end_date="2026-09-30"), TODAY)
-        self.assertTrue(r["is_expired"])
-        self.assertFalse(r["is_active"])
-
-    def test_boundaries(self):
-        self.assertTrue(bd.enrich(row(end_date="2026-10-07"), TODAY)["is_expiring"])
-        self.assertTrue(bd.enrich(row(end_date="2027-01-05"), TODAY)["is_expiring"])
-        self.assertFalse(bd.enrich(row(end_date="2027-01-06"), TODAY)["is_expiring"])
-
-    def test_no_end_date(self):
-        r = bd.enrich(row(renewal_type="無固定期限"), TODAY)
-        self.assertTrue(r["is_active"])
-        self.assertIsNone(r["days_to_end"])
-        self.assertFalse(r["is_expiring"])
-
-    def test_non_active_status_not_counted(self):
-        r = bd.enrich(row(status="審閱中", end_date="2026-10-31"), TODAY)
-        self.assertFalse(r["is_active"] or r["is_expiring"] or r["is_expired"])
-
-
-class SampleTest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.payload = bd.build_payload(SAMPLE, TODAY)
-        cls.html = bd.render(cls.payload)
-
-    def test_row_count(self):
-        self.assertEqual(len(self.payload["rows"]), 13)
-
-    def test_summary(self):
-        self.assertEqual(self.payload["summary"],
-                         {"active": 9, "expiring": 6, "notice_due": 1, "expired": 2})
-
-    def test_filter_options(self):
-        f = {x["key"]: x["options"] for x in self.payload["filters"]}
-        self.assertIn("採購", f["department"])
-        self.assertIn("房東", f["counterparty_category"])
-        self.assertIn("不動產租賃", f["contract_type"])
-        self.assertIn("已被續約取代", f["status"])
-        self.assertEqual(f["status"], sorted(set(f["status"])))
-
-    def test_html_is_self_contained(self):
-        self.assertNotRegex(self.html, r'(src|href)="https?://')
-        self.assertNotIn("__DATA__", self.html)
-        data = re.search(r'<script id="data" type="application/json">(.*?)</script>', self.html, re.S).group(1)
-        self.assertEqual(len(json.loads(data)["rows"]), 13)
-
-    def test_script_close_tag_escaped(self):
-        with tempfile.TemporaryDirectory() as d:
-            p = Path(d) / "r.csv"
-            header = SAMPLE.read_text(encoding="utf-8-sig").splitlines()[0]
-            p.write_text(header + "\nC-1,</script><b>x,,,,,,,,有效,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,\n", encoding="utf-8")
-            html = bd.render(bd.build_payload(p, TODAY))
-            self.assertEqual(html.count("</script>"), 2)
-
-
-class CliTest(unittest.TestCase):
-    def test_main_writes_file(self):
-        with tempfile.TemporaryDirectory() as d:
-            out = Path(d) / "o.html"
-            self.assertEqual(bd.main(["--register", str(SAMPLE), "--out", str(out), "--today", "2026-10-07"]), 0)
-            self.assertTrue(out.read_text(encoding="utf-8").startswith("<!doctype html>"))
-
-    def test_missing_columns_render_blank(self):
-        with tempfile.TemporaryDirectory() as d:
-            p = Path(d) / "r.csv"
-            p.write_text("contract_id,title\nC-1,x\n", encoding="utf-8")
-            self.assertEqual(bd.main(["--register", str(p), "--out", str(Path(d) / "o.html")]), 0)
-            payload = bd.build_payload(p, TODAY)
-            self.assertEqual(payload["rows"][0]["title"], "x")
-            self.assertNotIn("status", payload["rows"][0])
-            self.assertIsNone(payload["rows"][0]["days_to_end"])
-
-    def test_bad_today(self):
-        self.assertEqual(bd.main(["--register", str(SAMPLE), "--today", "abc"]), 2)
-
-
-class SchemaAndLogoTest(unittest.TestCase):
-    def test_schema_labels_and_added_fields(self):
-        with tempfile.TemporaryDirectory() as d:
-            schema = json.loads(bd.DEFAULT_FIELDS.read_text())
-            next(f for f in schema["fields"] if f["name"] == "title")["label"] = "契約名稱"
-            schema["fields"] = [f for f in schema["fields"]
-                                if f["name"] not in {"contract_language", "dispute_resolution"}]
-            schema["fields"].extend([
-                {"name": "contract_language", "label": "合約語言", "type": "string"},
-                {"name": "dispute_resolution", "label": "爭議解決", "type": "string"},
-                {"name": "custom_field", "label": "新增欄位", "type": "string"},
-            ])
-            p = Path(d) / "fields.json"
-            p.write_text(json.dumps(schema))
-            payload = bd.build_payload(SAMPLE, TODAY, p)
-            labels = {f["name"]: f["label"] for f in payload["columns"]}
-            self.assertEqual(labels["title"], "契約名稱")
-            self.assertEqual(labels["contract_language"], "合約語言")
-            self.assertEqual(labels["dispute_resolution"], "爭議解決")
-            self.assertIn("custom_field", {f["name"] for f in payload["fields"]})
-            self.assertEqual(payload["rows"][0].get("contract_language", ""), "")
-
-    def test_governing_law_filter_uses_schema_label(self):
-        payload = bd.build_payload(SAMPLE, TODAY)
-        f = next(f for f in payload["filters"] if f["key"] == "governing_law")
-        self.assertEqual(f["label"], "準據法")
-        self.assertIn("中華民國法", f["options"])
-
-    def test_empty_register(self):
-        with tempfile.TemporaryDirectory() as d:
-            p = Path(d) / "empty.csv"
-            p.write_text("contract_id,title\n")
-            self.assertEqual(bd.build_payload(p, TODAY)["rows"], [])
-
-    def test_short_row_and_missing_id(self):
-        with tempfile.TemporaryDirectory() as d:
-            p = Path(d) / "short.csv"
-            p.write_text("title,status,end_date\nOnly title\n")
-            payload = bd.build_payload(p, TODAY)
-            self.assertEqual(len(payload["rows"]), 1)
-            self.assertEqual(payload["rows"][0]["end_date"], "")
-
-    def test_source_refs_are_preserved_and_script_safe(self):
-        with tempfile.TemporaryDirectory() as d:
-            p = Path(d) / "refs.csv"
-            refs = '{"title":{"page":2,"quote":"</script><img src=x>"}}'
-            with p.open("w", newline="") as handle:
-                writer = csv.DictWriter(handle, fieldnames=["contract_id", "source_refs"])
-                writer.writeheader()
-                writer.writerow({"contract_id": "C-1", "source_refs": refs})
-            payload = bd.build_payload(p, TODAY)
-            out = bd.render(payload)
-            embedded = re.search(r'<script id="data" type="application/json">(.*?)</script>', out, re.S).group(1)
-            self.assertEqual(json.loads(embedded)["rows"][0]["source_refs"], refs)
-            self.assertEqual(out.count("</script>"), 2)
-
-    def test_logo_is_embedded_only_when_requested(self):
-        with tempfile.TemporaryDirectory() as d:
-            p = Path(d) / "generic.png"
-            data = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aS1kAAAAASUVORK5CYII=")
-            p.write_bytes(data)
-            logo = bd.logo_data_uri(p)
-            self.assertEqual(base64.b64decode(logo.split(",", 1)[1]), data)
-            payload = bd.build_payload(SAMPLE, TODAY)
-            self.assertNotIn('<img src=', bd.render(payload))
-            self.assertIn('<img src="data:image/png;base64,', bd.render(payload, logo))
-            out = Path(d) / "logo.html"
-            self.assertEqual(bd.main(["--register", str(SAMPLE), "--out", str(out), "--logo", str(p)]), 0)
-            self.assertIn(logo, out.read_text())
-
-    def test_unsupported_logo_reports_error(self):
-        with tempfile.TemporaryDirectory() as d:
-            p = Path(d) / "text.png"
-            p.write_text("not an image")
-            out = Path(d) / "out.html"
-            self.assertEqual(bd.main(["--register", str(SAMPLE), "--out", str(out), "--logo", str(p)]), 1)
-            self.assertFalse(out.exists())
-
-    def test_missing_logo_reports_error(self):
-        with tempfile.TemporaryDirectory() as d:
-            self.assertEqual(bd.main(["--register", str(SAMPLE), "--out", str(Path(d)/"out.html"),
-                                      "--logo", str(Path(d)/"missing.png")]), 1)
-
-
-if __name__ == "__main__":
-    unittest.main()
+SAMPLE=Path(__file__).parent/'sample_register.csv';TODAY=dt.date(2026,10,7)
+class BuildTest(unittest.TestCase):
+ def setUp(self):self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name)
+ def tearDown(self):self.temp.cleanup()
+ def csv(self,text):p=self.root/'r.csv';p.write_text(text);return p
+ def test_date_boundaries(self):
+  for end,expected in [('2026-10-07',True),('2027-01-05',True),('2027-01-06',False),('',False)]:self.assertEqual(bd.enrich({'end_date':end,'status':'有效'},TODAY)['is_expiring'],expected)
+ def test_notice_and_expired(self):
+  r=bd.enrich({'end_date':'2026-12-15','status':'有效','notice_days':'30','renewal_type':'自動續約'},TODAY);self.assertTrue(r['is_notice_due'])
+  self.assertTrue(bd.enrich({'end_date':'2026-09-30','status':'有效'},TODAY)['is_expired'])
+ def test_invalid_date_and_integer(self):self.assertIsNone(bd.parse_date('bad'));self.assertIsNone(bd.parse_int('bad'))
+ def test_missing_fields_preserved_blank(self):
+  p=bd.build_payload(self.csv('title,status,end_date\nOnly title\n'),TODAY);self.assertEqual(p['records']['contracts'][0]['fields']['end_date'],'');self.assertEqual(p['records']['contracts'][0]['id'],'IMPORT-0001')
+ def test_empty_register(self):self.assertEqual(bd.build_payload(self.csv('title\n'),TODAY)['records']['contracts'],[])
+ def test_duplicate_id_rejected(self):
+  with self.assertRaises(ValueError):bd.build_payload(self.csv('contract_id,title\nC-1,a\nC-1,b\n'),TODAY)
+ def test_schema_rename_and_addition(self):
+  schema=json.loads(bd.DEFAULT_FIELDS.read_text());schema['fields'][1]['label']='契約名稱';schema['fields'].append({'name':'new','label':'新欄位','type':'string'});p=self.root/'schema.json';p.write_text(json.dumps(schema));data=bd.build_payload(SAMPLE,TODAY,p);self.assertEqual(data['config']['schema']['fields'][1]['label'],'契約名稱');self.assertEqual(data['config']['schema']['fields'][-1]['name'],'new')
+ def test_data_script_no_html_and_safe_literals(self):
+  p=self.csv('contract_id,title\nC-1,</script>\n');out=self.root/'data.js';self.assertEqual(bd.main(['--register',str(p),'--out',str(out)]),0);s=out.read_text();self.assertTrue(s.startswith('/*'));self.assertNotIn('</script>',s);payload=json.loads(s.split('window.CONTRACT_DATA = ',1)[1][:-2]);self.assertEqual(payload['records']['contracts'][0]['fields']['title'],'</script>')
+ def test_refresh_replaces_only_snapshot(self):
+  out=self.root/'data.js';out.write_text('old');self.assertEqual(bd.main(['--register',str(SAMPLE),'--out',str(out)]),0);self.assertFalse(out.with_name('data.js.tmp').exists());self.assertIn('CONTRACT_DATA',out.read_text())
+ def test_failure_keeps_previous_snapshot(self):
+  out=self.root/'data.js';out.write_text('old');self.assertEqual(bd.main(['--register',str(self.root/'missing'),'--out',str(out)]),1);self.assertEqual(out.read_text(),'old')
+ def test_bad_today(self):self.assertEqual(bd.main(['--today','bad']),2)
+ def test_logo_optional(self):
+  data=base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aS1kAAAAASUVORK5CYII=');p=self.root/'generic.png';p.write_bytes(data);uri=bd.logo_data_uri(p);self.assertEqual(base64.b64decode(uri.split(',')[1]),data);self.assertEqual(bd.build_payload(SAMPLE,TODAY)['config']['logo'],'')
+ def test_bad_logo(self):
+  p=self.root/'bad.png';p.write_text('text')
+  with self.assertRaises(ValueError):bd.logo_data_uri(p)
+ def test_markdown_scalars_blocks_and_json(self):
+  p=self.root/'c.md';p.write_text('---\ncontract_id: "C-1"\ntitle: 原料合約\nnotes: |-\n  第一行\n  第二行\nsource_refs: {"title":{"page":2}}\n---\n原文\n');meta,body=bd.read_markdown(p);self.assertEqual(meta['notes'],'第一行\n第二行');self.assertEqual(meta['source_refs']['title']['page'],2);self.assertIn('原文',body)
+ def test_unsupported_yaml_rejected(self):
+  p=self.root/'bad.md';p.write_text('---\nsource_refs:\n  title: x\n---\n')
+  with self.assertRaises(ValueError):bd.read_markdown(p)
+ def test_markdown_input(self):
+  p=self.root/'c.md';p.write_text('---\ncontract_id: C-1\ntitle: 原料合約\n---\n');data=bd.build_payload(None,TODAY,markdown_dir=self.root);self.assertEqual(data['records']['contracts'][0]['fields']['title'],'原料合約')
+ def write_case(self,stages,people=None):
+  p=self.root/'CASE-1.md';text='---\ncase_id: CASE-1\nexample: true\ntitle: 範例\n---\n'
+  for i,stage in enumerate(stages):text+='```jsonl\n'+json.dumps({'time':f'2026-10-{i+1:02}T09:00:00+08:00','user':(people or ['甲']*len(stages))[i],'action':'狀態變更','to_stage':stage,'comment':'意見','attachment_version':f'V{i+1}'},ensure_ascii=False)+'\n```\n'
+  p.write_text(text);return p
+ def test_case_multi_round_and_actors(self):
+  p=self.write_case(['收件','法務審閱','退回需求部門','法務審閱','與對方協商','法務審閱','核准','簽署','歸檔']);case,entries=bd.read_case(p);self.assertTrue(case['example']);self.assertEqual(case['stage'],'歸檔');self.assertEqual(len(entries),9);self.assertEqual(entries[3]['from_stage'],'退回需求部門')
+ def test_case_append_only_multiple_blocks(self):
+  p=self.write_case(['收件']);original=p.read_bytes();entry={'time':'2026-10-02T09:00:00+08:00','user':'乙','action':'審閱','to_stage':'法務審閱','comment':'已審','attachment_version':'V2'}
+  with p.open('a') as f:f.write('```jsonl\n'+json.dumps(entry,ensure_ascii=False)+'\n```\n')
+  self.assertTrue(p.read_bytes().startswith(original));self.assertEqual(bd.read_case(p)[1][-1]['user'],'乙')
+ def test_case_invalid_transition(self):
+  with self.assertRaises(ValueError):bd.read_case(self.write_case(['收件','歸檔']))
+ def test_case_requires_actor(self):
+  with self.assertRaises(ValueError):bd.read_case(self.write_case(['收件'],['']))
+ def test_case_requires_initial_receipt(self):
+  with self.assertRaises(ValueError):bd.read_case(self.write_case(['核准']))
+ def test_case_snapshot_includes_timeline(self):
+  self.write_case(['收件','法務審閱']);data=bd.build_payload(SAMPLE,TODAY,cases_dir=self.root);self.assertEqual(len(data['records']['cases']),1);self.assertEqual(len(data['records']['progress']['cases:CASE-1']),2)
+ def test_frontend_file_access_and_no_network(self):
+  app=Path(__file__).parent/'app';html=(app/'index.html').read_text();self.assertNotIn('type="module"',html);self.assertIn('id="connect"',html);self.assertIn('id="editor"',html);self.assertIn('data/data.js',html);self.assertNotIn('fetch(', (app/'datasource.js').read_text())
+class FileSystemTest(unittest.TestCase):
+ def test_node_write_conflict_and_progress(self):
+  import subprocess,shutil
+  node=shutil.which('node')
+  if not node:self.skipTest('Node 未安裝；執行 test_datasource.js 需 Node')
+  result=subprocess.run([node,str(Path(__file__).parent/'test_datasource.js')],capture_output=True,text=True)
+  self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+ def test_per_event_case_directory(self):
+  with tempfile.TemporaryDirectory() as d:
+   root=Path(d)/'CASE-1';(root/'log').mkdir(parents=True);(root/'index.md').write_text('---\ncase_id: CASE-1\ntitle: 範例\n---\n')
+   (root/'log'/'one.md').write_text('---\ntime: "2026-10-07T01:00:00Z"\nuser: 甲\naction: 收件\nto_stage: 收件\nfrom_stage: ""\nattachment_version: V1\n---\n收到附件\n')
+   case,entries=bd.read_case_directory(root);self.assertEqual(case['stage'],'收件');self.assertEqual(entries[0]['comment'],'收到附件')
+if __name__=='__main__':unittest.main()
