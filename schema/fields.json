@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "note": "register.csv 的列舉欄位儲存 label（中文），code 供程式與外部系統對照。日期一律 YYYY-MM-DD。",
   "fields": [
     {
@@ -9,7 +9,7 @@
       "required": true,
       "from_text": false,
       "description": "主鍵。格式 C-西元年-四位流水號，例 C-2026-0001；一份合約一個編號，續約另編新號並以 prior_contract_id 連結上期。",
-      "source": "CLM 通行欄位（Contract ID）"
+      "source": "本工具自訂的合約管理欄位"
     },
     {
       "name": "title",
@@ -26,8 +26,8 @@
       "type": "enum",
       "required": true,
       "from_text": false,
-      "description": "分類代碼見 fields.json 的 contract_type。",
-      "source": "CLM 通行欄位（Contract Type）",
+      "description": "依交易內容與使用者確認選一個主要類型；附約用 parent_contract_id 連結主約。跨多種類型者在 notes 記次要類型。舊值「經銷代理」須由使用者依市場確認改為國內經銷或海外經銷，不自動推定。",
+      "source": "本工具自訂的台灣製藥／生技／化妝品業分類，非 CUAD 類別",
       "enum": "contract_type"
     },
     {
@@ -37,7 +37,7 @@
       "required": true,
       "from_text": false,
       "description": "負責該合約的部門，分類見 fields.json 的 department；各公司應依組織調整。",
-      "source": "CLM 通行欄位（Business Unit / Department）",
+      "source": "本工具自訂的合約管理欄位",
       "enum": "department"
     },
     {
@@ -47,7 +47,7 @@
       "required": false,
       "from_text": false,
       "description": "合約的日常承辦人姓名或職稱，供提醒對象使用。",
-      "source": "CLM 通行欄位（Contract Owner）"
+      "source": "本工具自訂的合約管理欄位"
     },
     {
       "name": "our_entity",
@@ -74,7 +74,7 @@
       "required": true,
       "from_text": false,
       "description": "分類見 fields.json 的 counterparty_category。",
-      "source": "CLM 通行欄位（Counterparty Type）",
+      "source": "本工具自訂的合約管理欄位",
       "enum": "counterparty_category"
     },
     {
@@ -93,7 +93,7 @@
       "required": true,
       "from_text": false,
       "description": "分類見 fields.json 的 status；到期與否由面板依日期計算，不另存。",
-      "source": "CLM 通行欄位（Contract Status / Lifecycle Stage）",
+      "source": "本工具自訂的合約管理欄位",
       "enum": "status"
     },
     {
@@ -168,7 +168,7 @@
       "required": false,
       "from_text": true,
       "description": "合約總額或年額（於 value_basis 註明）；無金額者留空。",
-      "source": "CLM 通行欄位（Contract Value）"
+      "source": "本工具自訂的合約管理欄位"
     },
     {
       "name": "currency",
@@ -176,8 +176,8 @@
       "type": "string",
       "required": false,
       "from_text": true,
-      "description": "ISO 4217 三碼，例 TWD、USD、CNY。",
-      "source": "ISO 4217"
+      "description": "記錄合約原文的幣別或明示代碼；符號有歧義時回報待確認，不從對方所在地推定。原文未載明則留空，citations 保留原文。",
+      "source": "本工具自訂的原文幣別欄位"
     },
     {
       "name": "value_basis",
@@ -195,7 +195,7 @@
       "required": false,
       "from_text": true,
       "description": "付款時點與期限摘要，例「月結 60 天」。",
-      "source": "CLM 通行欄位（Payment Terms）"
+      "source": "本工具自訂的合約管理欄位"
     },
     {
       "name": "liability_cap",
@@ -212,7 +212,7 @@
       "type": "string",
       "required": false,
       "from_text": true,
-      "description": "準據法所載法域，例「中華民國法」。",
+      "description": "合約明示的準據法法域；記錄原文，不依簽約地、相對人國籍或爭議地點推定。未載明則留空。",
       "source": "CUAD:Governing Law"
     },
     {
@@ -221,8 +221,44 @@
       "type": "string",
       "required": false,
       "from_text": true,
-      "description": "約定管轄法院或仲裁機構與地點。",
-      "source": "CLM 通行欄位（Dispute Resolution / Jurisdiction）"
+      "description": "舊版相容匯總欄位；新登錄留空，改填 dispute_resolution、dispute_forum 與 dispute_location。舊值不自動拆分，須回原文核對。",
+      "source": "本工具自訂的合約管理欄位"
+    },
+    {
+      "name": "contract_language",
+      "label": "合約語言",
+      "type": "string",
+      "required": false,
+      "from_text": true,
+      "description": "記錄實際提供的合約語言；多語版本並列，另於 key_clauses 引用優先版本約定；原文未指定優先版本時不推定。",
+      "source": "本工具自訂的涉外合約欄位"
+    },
+    {
+      "name": "dispute_resolution",
+      "label": "爭議解決方式",
+      "type": "string",
+      "required": false,
+      "from_text": true,
+      "description": "照錄法院訴訟、仲裁或分階段協商／調解等明示安排；未載明留空。",
+      "source": "本工具自訂的涉外合約欄位"
+    },
+    {
+      "name": "dispute_forum",
+      "label": "法院或仲裁機構",
+      "type": "string",
+      "required": false,
+      "from_text": true,
+      "description": "照錄約定法院全名或仲裁機構；臨時仲裁照錄，不以仲裁地推定機構。",
+      "source": "本工具自訂的涉外合約欄位"
+    },
+    {
+      "name": "dispute_location",
+      "label": "爭議解決地點",
+      "type": "string",
+      "required": false,
+      "from_text": true,
+      "description": "照錄法院所在地，或合約明定的仲裁地與開庭地；兩者不同時分別標示，不從機構名稱推定仲裁地。",
+      "source": "本工具自訂的涉外合約欄位"
     },
     {
       "name": "assignment_restriction",
@@ -250,7 +286,7 @@
       "required": false,
       "from_text": true,
       "description": "有／無／未載明。",
-      "source": "CLM 通行欄位（Confidentiality）",
+      "source": "本工具自訂的合約管理欄位",
       "enum": "confidentiality"
     },
     {
@@ -260,7 +296,7 @@
       "required": false,
       "from_text": false,
       "description": "續約時指向被取代的上期 contract_id。",
-      "source": "CLM 通行欄位（Renewal Chain）"
+      "source": "本工具自訂的合約管理欄位"
     },
     {
       "name": "parent_contract_id",
@@ -269,7 +305,7 @@
       "required": false,
       "from_text": false,
       "description": "補充協議、訂單、附件所屬的主約 contract_id。",
-      "source": "CLM 通行欄位（Parent / Child Agreement）"
+      "source": "本工具自訂的合約管理欄位"
     },
     {
       "name": "obligations",
@@ -278,7 +314,7 @@
       "required": false,
       "from_text": true,
       "description": "需追蹤的義務（交付、付款、報告、保險、稽核）與日期，以「日期：事項」逐項、以 | 分隔。",
-      "source": "CLM 通行欄位（Obligation Management）"
+      "source": "本工具自訂的合約管理欄位"
     },
     {
       "name": "toc",
@@ -333,7 +369,7 @@
       "required": false,
       "from_text": false,
       "description": "最終簽署版原檔所在位置或連結。",
-      "source": "CLM 通行欄位（Document Repository Link）"
+      "source": "本工具自訂的合約管理欄位"
     },
     {
       "name": "notes",
@@ -342,7 +378,7 @@
       "required": false,
       "from_text": false,
       "description": "其他須記錄的事項。",
-      "source": "CLM 通行欄位"
+      "source": "本工具自訂的合約管理欄位"
     },
     {
       "name": "updated_at",
@@ -351,11 +387,47 @@
       "required": true,
       "from_text": false,
       "description": "主檔此列最後修改日。",
-      "source": "CLM 通行欄位"
+      "source": "本工具自訂的合約管理欄位"
     }
   ],
   "enums": {
     "contract_type": [
+      {
+        "code": "LIC",
+        "label": "授權"
+      },
+      {
+        "code": "DST-TW",
+        "label": "國內經銷"
+      },
+      {
+        "code": "DST-INT",
+        "label": "海外經銷"
+      },
+      {
+        "code": "CMO",
+        "label": "委託製造"
+      },
+      {
+        "code": "RAW",
+        "label": "原料供應"
+      },
+      {
+        "code": "CLIN",
+        "label": "臨床試驗"
+      },
+      {
+        "code": "RND",
+        "label": "共同研發"
+      },
+      {
+        "code": "TECH",
+        "label": "技術讓與"
+      },
+      {
+        "code": "JV",
+        "label": "合作投資"
+      },
       {
         "code": "PUR",
         "label": "採購供應"
@@ -379,14 +451,6 @@
       {
         "code": "NDA",
         "label": "保密協定"
-      },
-      {
-        "code": "DST",
-        "label": "經銷代理"
-      },
-      {
-        "code": "LIC",
-        "label": "授權"
       },
       {
         "code": "CON",
@@ -724,5 +788,9 @@
       "type": "array",
       "description": "每筆單行 JSON 含 field、quote、page 或 clause；page 可空，須有頁碼或條號"
     }
+  },
+  "references": {
+    "CUAD": "https://arxiv.org/abs/2103.06268",
+    "note": "CUAD 為國際公開資料集，僅借用條款分類名稱；合約類型、欄位識別字與公司立場並非該資料集的標準。"
   }
 }

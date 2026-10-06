@@ -17,18 +17,18 @@ description: 讀一份合約（PDF、Word、掃描檔），抽出合約主檔欄
 
 ## 步驟
 
-1. **轉成 Markdown**：先用 `doc-library` skill 把原檔轉成 Markdown。PDF 輸出每頁開頭有 `<!-- page: N -->` 標記；後續頁碼以這些標記為準。Word 等無固定頁碼者以原文條號定位，不自編頁碼。掃描檔（`ocr` 為 true）的文字可能有辨識錯誤，關鍵欄位（日期、金額、對象名稱、期間）須對照該頁影像再引用，並在 `notes` 註明。轉換失敗、PDF 缺頁或頁標記不連續時停止，向使用者回報，不繼續抽取。
+1. **轉成 Markdown**：已有符合欄位與頁標記規格的 Markdown 時直接沿用；需要轉檔時可選用 [claude-office-kit 的 doc-library](https://github.com/brianfan0418/claude-office-kit/tree/main/skills/doc-library)，確認該 repo 的工具位置。PDF 輸出每頁開頭有 `<!-- page: N -->` 標記；後續頁碼以這些標記為準。Word 等無固定頁碼者以原文條號定位，不自編頁碼。掃描檔（`ocr` 為 true）的文字可能有辨識錯誤，關鍵欄位（日期、金額、對象名稱、期間）須對照該頁影像再引用，並在 `notes` 註明。轉換失敗、PDF 缺頁或頁標記不連續時停止，向使用者回報，不繼續抽取。
 2. **建立章節目錄**：依原文標題列出條號與標題，格式 `第N條 標題`，以 ` | ` 串接，寫入 `toc`。原文沒有條號者以其標題原文為準，不自編條號。每個章節附一筆 citations（`field` 為 `toc`），引句取標題原文。
-3. **抽取欄位**：依 `<工具包資料夾>/contracts/schema/fields.json` 逐欄處理。`from_text` 為 true 的欄位須附 citations；`from_text` 為 false 的欄位（承辦部門、承辦人、合約類型、對象類別、狀態、合約編號、備註等）不由原文判斷，向使用者詢問或留空。列舉欄位只能填 `fields.json` 中該列舉的 label。`title` 驗證前保留檔名預填值，先記錄支持原文正式名稱的 `citations`，由步驟 7 核對後覆寫同一鍵。日期一律 `YYYY-MM-DD`；原文為民國年者，轉換後在 citations 的 quote 保留民國年原文。
-4. **整理關鍵條款摘要**：`key_clauses` 以 `第N條：摘要` 書寫，摘要只複述原文所載事實，每項附 citations。手冊涵蓋的條款類型（期間與續約、終止、付款、責任上限、賠償、保密、智慧財產、個資、準據法與管轄、不可抗力、轉讓）逐一檢查：有則摘要，全文找不到則在 `notes` 寫「全文未見○○條款」並註明搜尋用語。
-5. **寫入 Markdown frontmatter**：更新轉換後 Markdown 既有的 YAML frontmatter，格式見 `<工具包資料夾>/contracts/build_register.py` 的說明；內文原樣保留不修改。frontmatter 含：
+3. **抽取欄位**：依 `<合約工具包資料夾>/schema/fields.json` 逐欄處理。`from_text` 為 true 的欄位須附 citations；`from_text` 為 false 的欄位（承辦部門、承辦人、合約類型、對象類別、狀態、合約編號、備註等）不由原文判斷，向使用者詢問或留空。列舉欄位只能填 `fields.json` 中該列舉的 label。`title` 驗證前保留檔名預填值，先記錄支持原文正式名稱的 `citations`，由步驟 7 核對後覆寫同一鍵。日期一律 `YYYY-MM-DD`；原文為民國年者，轉換後在 citations 的 quote 保留民國年原文。
+4. **整理關鍵條款摘要**：`key_clauses` 以 `第N條：摘要` 書寫，摘要只複述原文所載事實，每項附 citations。手冊涵蓋的條款類型（期間與續約、終止、付款、責任上限、賠償、保密、智慧財產、個資、準據法與管轄、不可抗力、轉讓），並檢查涉外合約的語言優先、幣別匯率、貿易條件及領域條款；逐一檢查：有則摘要，全文找不到則在 `notes` 寫「全文未見○○條款」並註明搜尋用語。
+5. **寫入 Markdown frontmatter**：更新轉換後 Markdown 既有的 YAML frontmatter，格式見 `<合約工具包資料夾>/build_register.py` 的說明；內文原樣保留不修改。frontmatter 含：
    - `fields.json` 的所有欄位（欄位名稱一致）。`title` 沿用轉檔的同一鍵，核對原文並完成驗證後覆寫，不新增第二個 `title`。
    - `source_path`、`source_sha256`、`source_modified`、`converter`、`converted_at`、`pages`、`ocr`、`ocr_engine`、`ocr_pages`：沿用 doc-library 輸出者，不自行編造；缺少時回報使用者。
    - `verification_status: "未驗證"`。
    - `citations`：每行一筆單行 JSON，`{"field":"end_date","file":"<source_path>","page":3,"clause":"第5條","quote":"逐字引句"}`。同一欄位有多個依據時寫多筆。無固定頁碼例：`{"field":"end_date","page":null,"clause":"第5條","quote":"逐字引句"}`。
-6. **機械檢查**：執行 `python "<工具包資料夾>/contracts/build_register.py" --md-dir <md 資料夾> --out <暫存 csv> --allow-unverified`，重轉文件若 `needs_review: true`，先完成步驟 7 的新版原文驗證，驗證成功後解除旗標，再重跑本步驟。確認沒有「quote 不在原文中」「有值但沒有 citations」等錯誤；有錯誤先修正再繼續。
+6. **機械檢查**：執行 `python "<合約工具包資料夾>/build_register.py" --md-dir <md 資料夾> --out <暫存 csv> --allow-unverified`，重轉文件若 `needs_review: true`，先完成步驟 7 的新版原文驗證，驗證成功後解除旗標，再重跑本步驟。確認沒有「quote 不在原文中」「有值但沒有 citations」等錯誤；有錯誤先修正再繼續。
 7. **獨立驗證**：開一個不帶前情的新對話（或不帶前情的 subagent），只給它轉換後的 Markdown 路徑、可讀取的原檔路徑與下方「驗證交辦」，不給抽取過程的推理。驗證者更新 `verification_status`、`verified_at`、`verifier_note`；全部相符後將 `needs_review` 設為 false。`title` 確認相符後以原文正式名稱覆寫原鍵，其餘欄位值與 `citations` 不改。結果為「驗證不符」的欄位，回到步驟 3 修正後重驗；無法修正者改填「未載明」並在 `notes` 說明。
-8. **使用者確認**：給使用者一張逐欄表：欄位、值、頁碼、條號、引句、驗證結果；`未載明` 欄位單獨列出。使用者確認後才執行：`python "<工具包資料夾>/contracts/build_register.py" --md-dir <md 資料夾> --out <主檔 register.csv>`（只寫入 `verification_status` 為「已驗證」且 `needs_review` 不為 true 者）。
+8. **使用者確認**：給使用者一張逐欄表：欄位、值、頁碼、條號、引句、驗證結果；`未載明` 欄位單獨列出。使用者確認後才執行：`python "<合約工具包資料夾>/build_register.py" --md-dir <md 資料夾> --out <主檔 register.csv>`（只寫入 `verification_status` 為「已驗證」且 `needs_review` 不為 true 者）。
 9. 回報寫入筆數與被擋下的清單；不要手動編輯 `register.csv`。
 
 ## 驗證交辦（交給不帶前情的對話）

@@ -80,6 +80,40 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(rows[0]["counterparty_name"], "甲供應商股份有限公司")
         self.assertEqual(list(rows[0]), [f["name"] for f in FIELDS])
 
+    def test_foreign_contract_fields_need_verbatim_citations(self):
+        values = {
+            "contract_language": "英文", "currency": "USD",
+            "governing_law": "中華民國法", "dispute_resolution": "仲裁",
+            "dispute_forum": "合約明載機構", "dispute_location": "臺北",
+        }
+        m = meta(contract_type="海外經銷", **values)
+        body = BODY + "\n第6條 " + "；".join(values.values())
+        write(self.dir, "a.md", m, body)
+        rows, problems = self.run_build()
+        self.assertEqual(rows, [])
+        for name in values:
+            self.assertTrue(any(name in error for error in problems[0][1]))
+        m["citations"].extend({"field": name, "page": 2, "clause": "第6條", "quote": value}
+                              for name, value in values.items())
+        write(self.dir, "a.md", m, body)
+        rows, problems = self.run_build()
+        self.assertEqual(problems, [])
+        for name, value in values.items():
+            self.assertEqual(rows[0][name], value)
+
+    def test_old_optional_fields_remain_readable_but_distribution_needs_confirmation(self):
+        m = meta()
+        for name in ("contract_language", "dispute_resolution", "dispute_forum", "dispute_location"):
+            m.pop(name)
+        write(self.dir, "a.md", m)
+        rows, problems = self.run_build()
+        self.assertEqual(problems, [])
+        self.assertEqual(rows[0]["dispute_location"], "")
+        write(self.dir, "a.md", {**m, "contract_type": "經銷代理"})
+        rows, problems = self.run_build()
+        self.assertEqual(rows, [])
+        self.assertTrue(any("contract_type" in error for error in problems[0][1]))
+
     def test_quote_not_in_text_is_rejected(self):
         m = meta()
         m["citations"][2]["quote"] = "有效期間至 2027 年 11 月 30 日止"
