@@ -11,9 +11,11 @@
 | `skills/contract-intake/` | 抽取、引用、獨立核對後登錄 | 盤點或新增合約 |
 | `skills/contract-compare/` | 逐條比較續約與同類合約 | 修改或續約談判 |
 | `skills/contract-review/` | 依公司手冊做初審 | 簽約前核對條款 |
+| `skills/tw-law/` | 全國法規資料庫的法規索引、現抓引用及施行狀態核對 | 初審需要台灣法條依據 |
+| `tools/fetch_law.py` | 依官方名稱或代碼下載法規至本機快取 | 需要可追溯的法規版本與抓取日期 |
 | `playbook/playbook.md` | 台灣法與涉外合約條款要點 | 公司法務填入立場、可接受範圍與升級條件 |
 | `build_register.py` | 驗證 frontmatter 與引用，產生 CSV | 已有符合規格的 Markdown 合約庫 |
-| `dashboard/` | 產生可在瀏覽器開啟的 HTML 面板 | 查看分類、到期與通知截止日 |
+| `dashboard/` | 瀏覽器面板與資料產生工具 | 查看分類、到期與通知截止日 |
 
 Claude Code：只複製使用者選定的完整 skill 目錄至專案 `.claude/skills/`，先備份同名內容；將 `<合約工具包資料夾>` 替換為本 repo 的絕對路徑。手冊複製至私人專案，由法務填寫公司立場，skill 改指向該份手冊，避免在公開 repo 保存公司資料。
 
@@ -35,10 +37,9 @@ Claude 桌面版 Cowork：可請 Claude 在授權資料夾讀取選定 skill 與
 
 ```text
 python3 build_register.py --md-dir 合約庫/md --out 合約庫/register.csv --source-root 合約庫/原檔
-python3 dashboard/build_dashboard.py --register 合約庫/register.csv --out 合約庫/dashboard.html
 ```
 
-程式只用 Python 標準庫。Windows 將 `python3` 換成已確認可用的 `python` 或 `py -3`。CSV 只由程式產生，不手動修改；被拒收的合約會列出錯誤，不寫入正式主檔。
+面板的資料輸出、開啟方式與介面驗證依 [dashboard/HANDOFF.md](dashboard/HANDOFF.md) 操作，使用與目前程式版本一致的命令。Python 程式只用標準庫。Windows 將 `python3` 換成已確認可用的 `python` 或 `py -3`。正式主檔 CSV 由程式產生；公開虛構案例與僅依年報整理的私人研究 CSV 是示範／研究資料，不是已驗證的正式主檔。被拒收的合約會列出錯誤，不寫入正式主檔。
 
 ## 欄位與在地化
 
@@ -61,4 +62,8 @@ python3 -m unittest discover -s .
 python3 -m unittest discover -s dashboard
 ```
 
-根目錄 discovery 同時納入主檔與面板測試。`dashboard/` 的樣本均為虛構資料，不能當成公司條款立場。驗證結果、未實測項目與下一步見 [docs/HANDOFF.md](docs/HANDOFF.md)。MIT 授權見 [LICENSE](LICENSE)。
+根目錄 discovery 同時納入主檔、法規工具及面板測試；法規工具的網路測試採假回應。正式 API、取得方式、命令及施行狀態限制見 [tw-law 取得方式](skills/tw-law/references/acquisition.md)。法規快取預設排除版本控制；正式引用前現抓，附條號與抓取日期，提醒「以全國法規資料庫現行條文為準」。
+
+`dashboard/sample_register.csv` 為 13 筆虛構資料，涵蓋 11 類授權、國內／海外經銷、委託製造、原料供應、技術讓與、顧問、工程、租賃、貸款及保密案例；含多語、外幣、外國準據法與仲裁的虛構約定。所有名稱、日期及條款設定只供展示，不能作為公司條款立場。第一筆語言留空示範未提供欄位，其他案例顯示語言資料；未提供原文出處，不補造引用。以新版 CSV 重新產生面板即可查看案例。
+
+驗證結果、未實測項目與下一步見 [docs/HANDOFF.md](docs/HANDOFF.md)。MIT 授權見 [LICENSE](LICENSE)。
