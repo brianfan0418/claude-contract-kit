@@ -4,8 +4,12 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
-import build_dashboard as build
-import import_review as importer
+if __package__:
+    from . import build_dashboard as build
+    from . import import_review as importer
+else:
+    import build_dashboard as build
+    import import_review as importer
 
 
 def string(text): return {'t': 'Str', 'c': text}
@@ -29,7 +33,7 @@ class ReviewTests(unittest.TestCase):
     def test_import_rebuild_and_no_overwrite(self):
         with tempfile.TemporaryDirectory() as temp:
             case = Path(temp) / 'C1'; case.mkdir(); (case/'index.md').write_text(importer.markdown({'case_id': 'C1'}))
-            with patch('import_review.subprocess.check_output', return_value=json.dumps(fixture())) as call:
+            with patch.object(importer.subprocess, 'check_output', return_value=json.dumps(fixture())) as call:
                 self.assertEqual(importer.import_document('source.docx', case), (1, 1))
                 self.assertIn('--track-changes=all', call.call_args[0][0])
                 original = (case/'review/versions/V1.md').read_bytes()

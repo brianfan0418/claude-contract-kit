@@ -24,17 +24,17 @@
 
 ## 使用命令
 
-在工具包根目錄執行；Python 僅使用標準庫，Linux 不須安裝套件。將「私人專案」替換為使用者實際資料夾。
+在工具包根目錄執行；Python 僅使用標準庫，Linux 不須安裝套件。將「交付資料夾」替換為使用者實際系統根目錄；每次取得先產生新的「取得時間-唯一識別碼」（例如 UTC 時間加 UUID），以下兩行為各自獨立的示例。
 
 ```text
-python3 tools/fetch_law.py --name 民法 --category law --cache-dir 私人專案/law-cache
-python3 tools/fetch_law.py --code G0400045 --cache-dir 私人專案/law-cache
+python3 tools/fetch_law.py --name 民法 --category law --cache-dir 交付資料夾/法規/取得時間-唯一識別碼
+python3 tools/fetch_law.py --code G0400045 --cache-dir 交付資料夾/法規/取得時間-唯一識別碼
 python3 -m unittest tools.test_fetch_law
 ```
 
-Windows 將 `python3` 換成已確認可用的 `python` 或 `py -3`。未指定 `--cache-dir` 時存工具包的 `law-cache/`（已排除版本控制）；公司資料與正式引用快取建議放私人專案，不進公開 repo。
+Windows 將 `python3` 換成已確認可用的 `python` 或 `py -3`。未指定 `--cache-dir` 時存工具包的 `law-cache/`（已排除版本控制）；交付作業每次明確指定新的 `交付資料夾/法規/<取得時間-唯一識別碼>/`，不得依賴預設目錄；公司資料及引用版本不進公開 repo。
 
-輸出 `law-cache/<官方法規名稱>.md` 的 frontmatter 包含來源網址、法規修正／公布日期、抓取日期及時間、施行註記摘要，另保留官方舊版日期／網址（如有）。`current_text_verified: false` 表示程式下載成功不等於法務已核對所引條文的現行施行版本。引用格式與停止條件見 [SKILL.md](../SKILL.md)。
+輸出 `法規/<取得時間-唯一識別碼>/<官方法規名稱>.md` 的 frontmatter 包含來源網址、法規修正／公布日期、抓取日期及時間、施行註記摘要，另保留官方舊版日期／網址（如有）。`current_text_verified: false` 表示程式下載成功不等於法務已核對所引條文的現行施行版本。引用格式與停止條件見 [SKILL.md](../SKILL.md)。引用先讀此保存檔案；記錄保存相對路徑、取得日期、核對日期、條號、施行狀態、官方註記及核對者於同目錄的 `施行核對.md`。尚未核對時明寫「未查證」，不把下載成功視為施行確認。
 
 ## 尚待核對
 
