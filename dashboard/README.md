@@ -58,7 +58,7 @@ python3 -m unittest discover -s dashboard
 node dashboard/test_datasource.js
 ```
 
---logo 才內嵌 PNG／JPEG／GIF／WebP，公開範例沒有公司 logo。缺欄位留白，缺編號自動給號；不改原 CSV／Markdown。解析可攜頂層 YAML scalar、JSON inline、兩空格 literal／folded block；巢狀 YAML 用單行 JSON。cases 舊版 Markdown／JSONL 與每案資料夾日誌可作匯入來源，正式操作資料是本機程式管理的集合。--fields 預設 repo schema；--settings 只加入 organization／approvalAuthority。部門與處理人下拉、核准步驟來源提示保留。
+--logo 才內嵌 SVG／PNG／JPEG／GIF／WebP，公開範例沒有公司 logo。缺欄位留白，缺編號自動給號；不改原 CSV／Markdown。解析可攜頂層 YAML scalar、JSON inline、兩空格 literal／folded block；巢狀 YAML 用單行 JSON。cases 舊版 Markdown／JSONL 與每案資料夾日誌可作匯入來源，正式操作資料是本機程式管理的集合。--fields 預設 repo schema；--settings 只加入 organization／approvalAuthority。部門與處理人下拉、核准步驟來源提示保留。
 
 ## 介面與審閱
 
@@ -69,3 +69,12 @@ node dashboard/test_datasource.js
 審閱分頁按條號比對上一輪／本輪，以底線、刪除線只標必要增刪；留言串記處理人、時間、待處理／已解決，可只看未解決。selector 使用 TextQuoteSelector 的 exact／prefix／suffix，錨定不可變版本；新留言、回覆、解決與重開各追加事件。新版本由 AI 匯入，網頁不自動接受修訂。成熟依據：[GitHub PR](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/commenting-on-a-pull-request)、[Google 建議](https://support.google.com/docs/answer/6033474)、[W3C 錨點](https://www.w3.org/TR/annotation-model/#text-quote-selector)。
 
 Word 修訂稿由 import_review.py 使用本機 Pandoc --track-changes=all -t json，產生唯讀匯入來源版本與註解，再經 CLI review-import 寫入本機介面。複雜 inline／跨條號註解拒收，對照原稿驗收。依據：[Pandoc](https://pandoc.org/MANUAL.html#option--track-changes)。
+
+
+## B13：文件路由、欄位出處與欄寬
+
+json-server 的 [v0 公開模組 API](https://github.com/typicode/json-server/tree/v0#module) 提供 defaults 的 static 選項；將完整 MkDocs 產物放在 `docs-site/site/`，由 start.mjs 掛於 `/docs/`。另可用 `CONTRACT_DOCS_DIR` 指定建置產物目錄。面板頂部「說明」開啟同一程式的 `/docs/index.html`。
+
+欄寬採 [Microsoft Fluent DataGrid](https://fluentui-blazor.azurewebsites.net/datagrid) 的 ResizableColumns 拖曳邊界與鍵盤調整概念；vanilla 實作遵循 [WAI-ARIA Separator／Window Splitter](https://www.w3.org/WAI/ARIA/apg/patterns/windowsplitter/)。表頭邊界可拖曳，聚焦後左右鍵調整 16px、Shift＋左右鍵 32px，Home／End 選 80／1000px；雙擊或 Enter 按目前顯示資料自動適應。「欄寬」可直接輸入尺寸，提供不拖曳的單指標操作方式。合約與案件的欄寬分別保存，localStorage 失敗時仍可使用。
+
+欄位出處以欄位名稱、原文引句、來源與驗證狀態呈現。頁碼標示採印刷頁，PDF 連結採實體頁；缺原文與驗證資料不推定。`demo: true` 加 `demo_fields` 列出虛構補值欄位，介面只對這些值標「範例」，原文摘錄不加範例標記。`--logo` 支援 SVG 及點陣圖；SVG 拒絕 script、事件屬性與外部 href。公司圖檔只放私人交付。

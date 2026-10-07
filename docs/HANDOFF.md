@@ -56,3 +56,10 @@ node dashboard/test_datasource.js             19 checks，0 failed
 2026-10-07：固定 json-server 0.17.4，官方 engines.node >=12；啟動改用公開 create／defaults／router，移除自訂 lowdb 依賴。POST 明確指定字串 UUID，CLI 及匯入支援數字舊 ID，既有單欄更新驗證保留。82 個根目錄 unittest（含 dashboard 47 個）、22 項 Node 檢查全過，指定去識別規則零命中。私人 demo、鎖檔、說明頁與交付 README 同步。
 
 未完成：官方 Node 20 二進位及 SHA256 已驗證，但 npm ci 下載套件出現 EPIPE，期限前安裝未完成，Node 20／22 的 HTTP、CLI 新增／更新／進度實測皆 NOT_RUN；範例 db.json 完全未變更。接續先在可下載套件的環境完成 npm ci，再依 README 以 Node 20／22 各自啟動、確認磁碟寫回，停止程式並還原資料。私人 validation-b12.json 保存狀態。
+
+
+## B13：面板資料呈現與說明整合
+
+2026-10-07：面板頂部新增「說明」，start.mjs 以 /docs/ 提供完整 MkDocs 產物，安裝目錄與操作與調整方式集中於 [面板 README](../dashboard/README.md)。欄位出處改成標籤、原文引句、印刷頁／PDF 實體頁連結與驗證狀態，不顯示來源 JSON。欄寬支援拖曳、方向鍵、雙擊自動適應、localStorage 保存與數字輸入對話框；字級、側欄、抽屜、欄位選擇功能保留。SVG logo 匯入新增格式與外部 href／事件拒收檢查；公開範例不包含公司圖檔。虛構欄位以 demo_fields 明確列出，介面逐欄標「範例」。
+
+驗證：根目錄 discovery 83 tests（含 dashboard 48）、Node 25 checks 全過；Linux 實際 npm ci，Node 20.20.2 與 22.23.2 各自啟動，首頁、docs 與 API 200，CLI 新增案件、單欄更新與進度均確認寫回磁碟，測後逐位元還原。瀏覽器確認欄寬拖曳、方向鍵、數字輸入、雙擊適應及重新排序後保留；來源頁碼顯示印刷頁而連結對應 PDF 實體頁。私人範例 27 合約、4 案件的補值與 VM 種子同步，年報非空原文欄位逐欄保留。Windows 實機限制仍依 README，不能以 Linux 驗證代替。B12 的 NOT_RUN 為當輪歷史狀態，穩定版執行驗證已於 B13 補完。

@@ -33,6 +33,12 @@ class BuildTest(unittest.TestCase):
  def test_bad_today(self):self.assertEqual(bd.main(['--today','bad']),2)
  def test_logo_optional(self):
   data=base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aS1kAAAAASUVORK5CYII=');p=self.root/'generic.png';p.write_bytes(data);uri=bd.logo_data_uri(p);self.assertEqual(base64.b64decode(uri.split(',')[1]),data);self.assertEqual(bd.build_payload(SAMPLE,TODAY)['config']['logo'],'')
+ def test_vector_logo(self):
+  p=self.root/'generic.svg';p.write_text('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10z"/></svg>');self.assertTrue(bd.logo_data_uri(p).startswith('data:image/svg+xml;base64,'))
+  p.write_text('<svg xmlns="http://www.w3.org/2000/svg"><image href="data:image/png;base64,iVBORw0KGgo="/></svg>');self.assertTrue(bd.logo_data_uri(p).startswith('data:image/svg+xml;base64,'))
+  for text in ['<svg><script>bad</script></svg>','<svg onload="bad()"/>','<svg><image href="https://example.org/image.png"/></svg>']:
+   p.write_text(text)
+   with self.assertRaises(ValueError):bd.logo_data_uri(p)
  def test_bad_logo(self):
   p=self.root/'bad.png';p.write_text('text')
   with self.assertRaises(ValueError):bd.logo_data_uri(p)

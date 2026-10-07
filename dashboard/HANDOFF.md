@@ -28,3 +28,8 @@ Windows start.bat、瀏覽器啟動與 Edge 實機未測；下一步在副總電
 ## B12 接續
 
 穩定版本更新與未完成驗證依根目錄 [交接](../docs/HANDOFF.md) 的 B12 節；前述 B9、B11 寫回驗證不代表 0.17.4 已完成實測。
+
+
+## B13 接續
+
+欄位出處、欄寬、SVG、說明路由與穩定版實測的決定、證據和限制集中於 [根目錄交接](../docs/HANDOFF.md#b13面板資料呈現與說明整合)。安裝與操作依 [README.md](README.md)。本輪由 Codex commit 並 push，公開產物不含公司資料或 Logo。

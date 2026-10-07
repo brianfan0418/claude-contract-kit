@@ -14,6 +14,8 @@ import hashlib
 import uuid
 import urllib.request
 import urllib.error
+import xml.etree.ElementTree as ET
+import re
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -75,7 +77,19 @@ def logo_data_uri(path):
     elif data.startswith(b'\xff\xd8\xff'): mime = 'image/jpeg'
     elif data[:6] in (b'GIF87a', b'GIF89a'): mime = 'image/gif'
     elif data[:4] == b'RIFF' and data[8:12] == b'WEBP': mime = 'image/webp'
-    else: raise ValueError('--logo 須為 PNG、JPEG、GIF 或 WebP')
+    elif data.lstrip().startswith((b'<svg', b'<?xml')):
+        try: root = ET.fromstring(data)
+        except ET.ParseError as error: raise ValueError('--logo SVG 格式錯誤') from error
+        if root.tag.split('}')[-1] != 'svg': raise ValueError('--logo 須為 SVG 圖片')
+        for node in root.iter():
+            if node.tag.split('}')[-1] in ('script', 'foreignObject'): raise ValueError('--logo SVG 不得含程式')
+            for key, value in node.attrib.items():
+                embedded_image = node.tag.split('}')[-1] == 'image' and re.fullmatch(
+                    r'data:image/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=\s]+', value)
+                if key.split('}')[-1].lower().startswith('on') or (key.split('}')[-1] == 'href' and not value.startswith('#') and not embedded_image):
+                    raise ValueError('--logo SVG 不得含程式或外部資源')
+        mime = 'image/svg+xml'
+    else: raise ValueError('--logo 須為 SVG、PNG、JPEG、GIF 或 WebP')
     return 'data:' + mime + ';base64,' + base64.b64encode(data).decode()
 
 def read_markdown(path):
