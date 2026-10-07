@@ -1,6 +1,6 @@
 # 交接
 
-最後更新：2026-10-07 B15（台灣時間）
+最後更新：2026-10-07 B16（台灣時間）
 
 ## 現況
 
@@ -83,3 +83,12 @@ node dashboard/test_datasource.js             19 checks，0 failed
 交付環境預設不用 Git，版本與處理紀錄由系統負責；給人看的頁面移除 Git，AI README 只留可選用一句。既有開發 repo 的 commit／push 規則沿用。私人第二階段建議 Nextcloud＋ONLYOFFICE Docs＋合約服務，DocSpace 為替代方案；不部署第二階段，主機選擇由資訊部評估。官方 9.4 發布公告確認 Community 移除舊 20 連線限制，Automation API 仍只列 Developer 付費功能。
 
 已驗證：根目錄 discovery 93 tests、dashboard discovery 58 tests、Node 28 checks 全過。6 個新增測試含自製原生修訂／註解／解決狀態、唯一錨點拒收、原檔保留、新檔不覆寫、其他 OOXML 項目逐位元保留及 Word 套件重新讀取。Chromium file:// 實測匯入、重新整理保留、AI 建議檔匯入與新 Word 下載；Python 重新解析瀏覽器下載檔。CLI 原生 Word 經 VM REST 匯入並確認磁碟寫回，測後移除測試紀錄。VM 首頁、/docs、API 200；私人截圖 ui7 已逐張檢視。Windows Word／Edge 實機未測，跨格式、移動與格式修訂、複雜註解須另驗證。
+
+
+## B16：案件全頁與說明即時導覽
+
+案件改為主區全頁，頂部顯示案件進度、需求部門與承辦人，分為明細／Word 審閱／進度紀錄；Word 總覽全寬，合約保留抽屜。返回保留搜尋、部門及預設檢視、排序、水平與垂直捲動。先保存列表位置再重繪；隱藏列表不重新量欄寬，回列表後重繪及還原。更新紀錄保留目前分頁；窄畫面依 Fluent Tablist 指引使用下拉選擇，保留鍵盤操作。
+
+本機程式的 /docs/sitemap.xml 依實際網址及埠輸出，支援 Material navigation.instant；選擇性設定的代理網址僅供 sitemap，公開版 API 仍拒絕非本機 Origin。私人文件站維持 file:// 完整換頁，於 head 提早套用字級與背景、body 早期暗色樣式、靜態字級控制、捲軸保留空間與本機離線搜尋 shim。私人提案搬至獨立 admin-ai，未提交私人檔案至本 repo。
+
+驗證：根目錄 discovery 96 tests、dashboard 61 tests、Node 28 checks 全過，新增 3 個實際啟動 json-server 測試 docs／API、可搬移 sitemap、非本機寫入拒收。Playwright 檢查案件 1920 亮色、390 暗色與 200%，三分頁鍵盤、返回搜尋／部門／排序／捲動，以及 file:// 示範進度保存後重新整理保留。HTTP／file 各 16 幀以 50ms 排程連拍；HTTP 無 document 重載，離線背景及字級維持。私人證據與截圖見其交接，不提交公司資料；Windows Word／Edge 實機未測。

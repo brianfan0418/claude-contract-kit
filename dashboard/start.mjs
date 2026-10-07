@@ -2,7 +2,7 @@
 import {resolve,dirname,join} from 'path';
 import {fileURLToPath} from 'url';
 import Module from 'module';
-import {existsSync} from 'fs';
+import {existsSync,readFileSync} from 'fs';
 import {spawn} from 'child_process';
 if(Number(process.versions.node.split('.')[0])<12){console.error('Install Node.js 12 or newer.');process.exit(1)}
 const root=dirname(fileURLToPath(import.meta.url));process.chdir(root);
@@ -20,7 +20,19 @@ app.use((req,res,next)=>{const origin=req.headers.origin;if(origin&&![`http://12
 app.use(jsonServer.defaults({logger:false,static:resolve(staticDir),noCors:true}));
 // A complete MkDocs output can be shipped next to the application.
 const docsDir=resolve(process.env.CONTRACT_DOCS_DIR||'docs-site/site');
-if(existsSync(join(docsDir,'index.html')))app.use('/docs',jsonServer.defaults({logger:false,static:docsDir,noCors:true}));
+if(existsSync(join(docsDir,'index.html'))){
+ // Material instant navigation requires sitemap URLs to match the serving origin.
+ app.get('/docs/sitemap.xml',(req,res,next)=>{
+  const file=join(docsDir,'sitemap.xml');if(!existsSync(file))return next();
+  const proxyOrigin=(process.env.CONTRACT_ALLOWED_ORIGINS||'').split(',').filter(Boolean).find(origin=>new URL(origin).host===req.headers.host);
+  const base=proxyOrigin||`http://${req.headers.host}`;
+  const xml=readFileSync(file,'utf8').replace(/<loc>([^<]+)<\/loc>/g,(_,href)=>{
+   const path=new URL(href).pathname;return `<loc>${base}${path}</loc>`;
+  });
+  res.type('application/xml').send(xml);
+ });
+ app.use('/docs',jsonServer.defaults({logger:false,static:docsDir,noCors:true}));
+}
 const demoDir=resolve('展示版');
 if(existsSync(join(demoDir,'index.html')))app.use('/demo',jsonServer.defaults({logger:false,static:demoDir,noCors:true}));
 app.use(jsonServer.router(database));

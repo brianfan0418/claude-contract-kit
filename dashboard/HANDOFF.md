@@ -41,3 +41,7 @@ Windows start.bat、瀏覽器啟動與 Edge 實機未測；如需正式使用，
 ## B15 接續
 
 Word 原生審閱、預設系統版本紀錄與驗證集中於 [根目錄交接](../docs/HANDOFF.md#b15word-原生審閱與系統版本紀錄)；工具用法與 OOXML 支援範圍依 README。編輯與接受／拒絕仍用 Word，網頁提供總覽、版本比對、AI 建議的新 Word 及下載。
+
+## B16 接續
+
+案件全頁、三分頁、窄螢幕下拉、返回列表狀態與可搬移文件站 sitemap 的實作及驗證集中於 [根目錄交接](../docs/HANDOFF.md#b16案件全頁與說明即時導覽)。新增三個實際本機服務整合測試需先於 dashboard 執行 npm ci；一般 discovery 與 Node 指令維持不變。

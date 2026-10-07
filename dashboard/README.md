@@ -62,6 +62,10 @@ node dashboard/test_datasource.js
 
 ## 介面與審閱
 
+案件以全頁工作區顯示頂部進度、需求部門及承辦人，分為明細／Word 審閱／進度紀錄。Word 總覽使用主區全寬；返回案件列表保留搜尋、篩選、排序及捲動位置。分頁可用方向鍵及 Home／End 操作；合約庫明細維持右側抽屜。
+
+如附 MkDocs Material 文件站，HTTP 可使用 navigation.instant；start.mjs 的 /docs/sitemap.xml 會對應實際主機與埠，文件站可離線完整換頁。字級與明暗的首次載入、捲軸保留空間由文件站原始碼管理。
+
 [Fluent 2](https://fluent2.microsoft.design/) 亮暗配色與 [System Icons](https://github.com/microsoft/fluentui-system-icons) SVG 內嵌，MIT 授權見 app/fluent-icons.LICENSE。明暗、100／125／150／200% 字級、欄位選擇、側欄與抽屜寬度保存 localStorage，讀寫包 try/catch。分隔可拖曳、方向鍵調寬、Home／End、Enter／雙擊還原，依 [WAI-ARIA Splitter](https://www.w3.org/WAI/ARIA/apg/patterns/windowsplitter/)。390px 手機版型保留；第一階段手機不能連入，第二階段內網主機與登入上線後才開放。
 
 到期日依瀏覽器當天本地日期計算；不依狀態。已逾期、當天至 90 天、明載自動續約與通知期限、到期日未載明分別檢視。全空欄預設隱藏，可由「欄位」選擇器顯示。

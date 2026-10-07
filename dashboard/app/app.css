@@ -25,3 +25,24 @@
 .mode-notice{flex-shrink:0}.original-clause{padding:12px;margin:8px 0;border:1px solid var(--colorNeutralStroke2);border-radius:4px;scroll-margin-top:16px}.original-clause:focus{outline:2px solid var(--colorBrandForegroundLink)}.original-clause p{white-space:pre-wrap;overflow-wrap:anywhere}
 
 .word-summary{width:100%;table-layout:fixed;font-size:1em}.word-summary th,.word-summary td{white-space:pre-wrap;overflow-wrap:anywhere;vertical-align:top;padding:8px;border-bottom:1px solid var(--colorNeutralStroke1)}.word-summary th:nth-child(1){width:18%}.word-summary th:nth-child(2){width:25%}.word-summary th:nth-child(3){width:27%}.word-summary th:nth-child(4){width:30%}.word-summary ins{background:none;text-decoration:underline}.word-summary del{background:none}.word-upload{display:flex;flex-direction:column;gap:6px;max-width:100%;margin:12px 0}.word-upload input{max-width:100%}@media(max-width:600px){.word-summary{min-width:560px}}
+
+/* Cases use the full available work area; contracts retain the resizable drawer. */
+[data-list-view][hidden],.case-page[hidden]{display:none!important}
+.case-page{min-width:0;width:100%;display:flex;flex-direction:column;gap:12px}
+.case-page>#case-back{align-self:flex-start}
+.case-page .drawer-head{padding:16px;background:var(--colorNeutralBackground1);border:1px solid var(--colorNeutralStroke2);border-radius:4px;order:1}
+.case-page .case-summary{order:2;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:12px}
+.case-summary>div{display:grid;gap:4px;padding:12px 16px;border:1px solid var(--colorNeutralStroke2);border-radius:4px;background:var(--colorNeutralBackground1)}
+.case-summary strong{font-weight:600;overflow-wrap:anywhere}
+.case-page .drawer-body{order:3;overflow:visible;background:var(--colorNeutralBackground1);border:1px solid var(--colorNeutralStroke2);border-radius:4px;padding:16px}
+.case-page .drawer-body>div[role=tabpanel]>section+section{margin-top:20px}
+.case-page dl{display:grid;grid-template-columns:minmax(140px,20%) minmax(0,1fr);gap:0 16px;margin:0}
+.case-page dt,.case-page dd{padding:8px 0;border-bottom:1px solid var(--colorNeutralStroke2);overflow-wrap:anywhere}
+.case-page dt{color:var(--colorNeutralForeground3)}.case-page dd{margin:0;white-space:pre-wrap}
+.case-page h3{margin-bottom:8px}.case-page pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;margin:0}
+.case-page .progress-form{max-width:960px}.case-page .detail-tabs{position:static;padding-top:0;flex-wrap:wrap}
+@media(max-width:639px){.case-page .drawer-head,.case-page .drawer-body{padding:12px}.case-page dl{grid-template-columns:1fr}.case-page dt{border-bottom:0;padding-bottom:0}.case-page dd{padding-top:4px}.case-page .case-summary{gap:8px}.case-page .detail-tabs{gap:4px}.case-page .detail-tabs button{padding:6px 10px}}
+
+.case-page .case-summary{background:var(--colorNeutralBackground1);border:1px solid var(--colorNeutralStroke2);border-radius:4px;gap:0}.case-summary>div{display:flex;align-items:baseline;gap:12px;padding:8px 12px;border:0;background:transparent}.case-summary>div>span{flex-shrink:0;font-size:.857143rem}@media(max-width:639px){.case-summary>div{padding:6px 12px}.case-summary>div>span{width:6em}}
+
+.case-page .detail-tabs{flex-wrap:nowrap}.case-page .detail-tabs button{white-space:nowrap;flex-shrink:0}.detail-tabs[hidden],.case-tab-choice[hidden]{display:none!important}.case-tab-choice{display:grid;gap:4px;margin-bottom:16px;max-width:22rem}.case-tab-choice select{width:100%}
