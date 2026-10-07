@@ -13,7 +13,7 @@ class BuildTest(unittest.TestCase):
   self.assertTrue(bd.enrich({'end_date':'2026-09-30','status':'有效'},TODAY)['is_expired'])
  def test_invalid_date_and_integer(self):self.assertIsNone(bd.parse_date('bad'));self.assertIsNone(bd.parse_int('bad'))
  def test_missing_fields_preserved_blank(self):
-  p=bd.build_payload(self.csv('title,status,end_date\nOnly title\n'),TODAY);self.assertEqual(p['records']['contracts'][0]['fields']['end_date'],'');self.assertEqual(p['records']['contracts'][0]['id'],'IMPORT-0001')
+  p=bd.build_payload(self.csv('title,status,end_date\nOnly title\n'),TODAY);self.assertEqual(p['records']['contracts'][0]['fields']['end_date'],'');self.assertEqual(p['records']['contracts'][0]['id'],'C-2026-0001')
  def test_empty_register(self):self.assertEqual(bd.build_payload(self.csv('title\n'),TODAY)['records']['contracts'],[])
  def test_duplicate_id_rejected(self):
   with self.assertRaises(ValueError):bd.build_payload(self.csv('contract_id,title\nC-1,a\nC-1,b\n'),TODAY)
@@ -58,6 +58,24 @@ class BuildTest(unittest.TestCase):
   self.write_case(['收件','法務審閱']);data=bd.build_payload(SAMPLE,TODAY,cases_dir=self.root);self.assertEqual(len(data['records']['cases']),1);self.assertEqual(len(data['records']['progress']['cases:CASE-1']),2)
  def test_frontend_file_access_and_no_network(self):
   app=Path(__file__).parent/'app';html=(app/'index.html').read_text();self.assertNotIn('type="module"',html);self.assertIn('id="connect"',html);self.assertIn('id="editor"',html);self.assertIn('data/data.js',html);self.assertNotIn('fetch(', (app/'datasource.js').read_text())
+ def test_reminders_do_not_depend_on_status(self):
+  for status in ['', '審閱中', '已終止', '有效']:
+   self.assertTrue(bd.enrich({'end_date':'2026-10-06','status':status},TODAY)['is_expired'])
+   self.assertTrue(bd.enrich({'end_date':'2026-12-19','status':status},TODAY)['is_expiring'])
+   self.assertTrue(bd.enrich({'end_date':'2026-11-01','renewal_type':'自動續約','notice_days':'30','status':status},TODAY)['is_notice_due'])
+  self.assertFalse(bd.enrich({'end_date':'2027-10-07','status':'已到期'},TODAY)['is_expired'])
+ def test_missing_and_invalid_end_date_not_in_alerts(self):
+  for value in ['', '未載明', '2026-02-30']:
+   r=bd.enrich({'end_date':value,'status':'已到期','renewal_type':'自動續約','notice_days':'30'},TODAY)
+   self.assertTrue(r['is_end_unknown']);self.assertFalse(r['is_expired'] or r['is_expiring'] or r['is_notice_due'])
+ def test_system_ids_skip_explicit_ids_and_mark_origin(self):
+  data=bd.build_payload(self.csv('contract_id,title\n,a\nC-2026-0001,b\n,c\n'),TODAY)['records']['contracts']
+  self.assertEqual([r['id'] for r in data],['C-2026-0002','C-2026-0001','C-2026-0003'])
+  self.assertEqual([r['fields']['contract_id'] for r in data],[r['id'] for r in data]);self.assertEqual(data[0]['fields']['contract_id_origin'],'system')
+ def test_markdown_missing_id_is_generated_without_source_mutation(self):
+  path=self.root/'source.md';path.write_text('---\ntitle: example\n---\noriginal body\n');old=path.read_bytes()
+  r=bd.build_payload(None,TODAY,markdown_dir=self.root)['records']['contracts'][0]
+  self.assertEqual(r['fields']['contract_id'],'C-2026-0001');self.assertEqual(path.read_bytes(),old)
 class FileSystemTest(unittest.TestCase):
  def test_node_write_conflict_and_progress(self):
   import subprocess,shutil

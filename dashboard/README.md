@@ -40,7 +40,7 @@ python3 -m unittest discover -s dashboard
 node dashboard/test_datasource.js
 ```
 
-CSV／Markdown 可擇一或合併；重複編號拒絕。--fields 預設 repo schema；--today 固定到期計算基準。缺欄位留白，內部 IMPORT 編號不填入原合約編號。--logo 才內嵌 PNG／JPEG／GIF／WebP，公開範例不含公司 logo。生成失敗保留前次快照；成功置換 data.js，外框不重建。
+CSV／Markdown 可擇一或合併；重複編號拒絕。--fields 預設 repo schema；--today 指定快照日期及自動編號年份；面板提醒使用瀏覽器當天本地日期，不使用快照日期。缺欄位留白；缺合約編號時產生 C-年份-流水號，避開既有編號並記 contract_id_origin: system。產生程式只寫快照，不覆寫 CSV 或原 Markdown；正式主檔由人／AI 保存系統編號。--logo 才內嵌 PNG／JPEG／GIF／WebP，公開範例不含公司 logo。生成失敗保留前次快照；成功置換 data.js，外框不重建。
 
 Frontmatter 支援頂層 scalar、JSON 引號字串、單行 JSON、兩空格的 literal／folded block；不是完整 YAML parser，巢狀 YAML 請用單行 JSON。舊版每案單一 Markdown＋JSONL 可重建快照，但連接資料夾編輯使用上表的新格式。
 
@@ -79,3 +79,11 @@ python3 dashboard/build_dashboard.py --md-dir /path/to/md --cases-dir /path/to/c
 --settings 可加入私人 organization（units: id／name／path；people: name／unit）與 approvalAuthority（rules: department／text／source；caveat）。表單部門與處理人使用下拉選單；核准步驟附來源提示。設定只在提供參數時納入快照，公開 repo 不含真實組織或核決資料；不得將歷史公告當作目前有效授權。
 
 成熟依據：[GitHub PR 審閱](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/commenting-on-a-pull-request)、[Google 建議](https://support.google.com/docs/answer/6033474)、[W3C TextQuoteSelector](https://www.w3.org/TR/annotation-model/#text-quote-selector)、[Pandoc track-changes](https://pandoc.org/MANUAL.html#option--track-changes)、[WAI-ARIA 分頁](https://www.w3.org/WAI/ARIA/apg/patterns/tabs/)。本格式借用錨點概念，不宣稱完整 JSON-LD 標準相容。Windows Edge 實機仍未測。
+
+## 日期檢視與欄位
+
+到期日有效時，早於瀏覽器當天日期計入「已逾期」；當天至 90 天（含）計入「90 天內到期」，均不依狀態欄位。自動續約還須明載續約方式及非負整數通知天數：尚未逾期且通知截止日距今天不超過 90 天者計入，包含已過通知日。未提供或無效的到期日不計入提醒，可選「到期日未載明」；到期日不代表已確認終止或未續約。面板每分鐘及重新返回分頁時重算，跨日不需重建快照。
+
+表格常用欄位若整欄空白，預設隱藏；「欄位」對話框可顯示 schema 的任一欄位，包含空白欄，選擇後按「套用」。取消不改動表格；恢復預設清除自訂設定並重新依資料判斷。合約與案件分別保存欄位偏好，localStorage 存取包 try/catch；瀏覽器禁止保存時仍可當次使用。名稱缺值顯示「未載明」，不由相對人或標的推測。
+
+元件依據：[Fluent 2 Checkbox](https://fluent2.microsoft.design/components/web/react/core/checkbox/usage)、[Fluent 2 Dialog](https://fluent2.microsoft.design/components/web/react/core/dialog/usage)。

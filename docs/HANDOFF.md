@@ -1,10 +1,10 @@
 # 交接
 
-最後更新：2026-10-07 08:23（台灣時間）
+最後更新：2026-10-07 08:33（台灣時間）
 
 ## 現況
 
-獨立合約資源 repo 已有台灣製藥／生技／化妝品分類、台灣法與涉外合約手冊。已具備台灣法規技能、下載工具及共用檔案面板。本輪修正根目錄測試匯入與法規保存規則，建立本機 commit，由使用者 push；私人組織、logo、年報契約與介面截圖不進公開 repo。
+獨立合約資源 repo 已有台灣製藥／生技／化妝品分類、台灣法與涉外合約手冊。已具備台灣法規技能、下載工具及共用檔案面板。本輪修正日期提醒、系統編號與欄位選擇器，建立本機 commit，由使用者 push；私人組織、logo、年報契約與介面截圖不進公開 repo。
 
 ## 完成項目與決定
 
@@ -16,23 +16,23 @@
 - `playbook/playbook.md` 0.4 分列授權、國內／海外經銷、委託製造、原料供應、技術讓與、顧問、工程、租賃、融資與保密等要點，全部公司立場待填；`contract-review` 透過 tw-law 引用法規，未確認施行版本時只列問題。
 - `dashboard/sample_register.csv` 改為 13 筆、11 類虛構業別案例，表頭與 schema 範本一致，含多語、外幣、外國準據法及仲裁的虛構約定；保留既有提醒邊界與狀態數，未提供原文出處就留空，不補造引用。
 - 面板採共用檔案與 File System Access；B7 修正 `dashboard/test_review.py` 的套件匯入與 mock 目標，使根目錄及 dashboard 兩種 discovery 都可直接執行。詳細介面與資料格式依 [dashboard/HANDOFF.md](../dashboard/HANDOFF.md)。
-- 私人年報契約清冊逐列附頁碼與來源；年報未揭露者留空，契約性質保留原列值，授信額度不當作合約總額，非已驗證的正式主檔。
+- 私人年報主檔以清冊列次給系統編號，註明 system；顯示名稱照錄契約性質，另附頁碼及原文引句。其餘未揭露欄位留白，授信額度不當作合約總額，非已驗證的正式主檔。
 
 ## 已完成驗證
 
-2026-10-07 B7，於 repo 根目錄執行 README 原指令；沒有設定 PYTHONPATH：
+2026-10-07 B8，於 repo 根目錄執行 README 原指令；沒有設定 PYTHONPATH：
 
 ```text
-python3 -m unittest discover -s .             65 tests，OK
-python3 -m unittest discover -s dashboard     30 tests，OK
-node dashboard/test_datasource.js             23 checks，0 failed
+python3 -m unittest discover -s .             69 tests，OK
+python3 -m unittest discover -s dashboard     34 tests，OK
+node dashboard/test_datasource.js             28 checks，0 failed
 ```
 
-根目錄已包含 dashboard 的 30 個 unittest，不重複計算總數。Node 23 個是模擬 directory handle 的寫入、衝突與審閱檢查，亦由 unittest 呼叫；不能當作 Windows 實機證據。
+根目錄已包含 dashboard 的 34 個 unittest，不重複計算總數。Node 28 個是模擬 directory handle 的寫入、衝突與審閱檢查，亦由 unittest 呼叫；不能當作 Windows 實機證據。
 
-私人頁面及範例用 Linux headless Chromium、file:// 驗證：24 項檢查通過，涵蓋桌面 1920、手機 390、200% 字級、明暗及側欄／抽屜鍵盤調寬。7 張亮色截圖逐張檢查，長段落留在卡片內；兩個說明頁的單欄改為自然列高。私人重建命令補 --settings，實際重建保留 27 筆契約、4 件虛構案件、271 單位、90 人與 14 則核決提示；手冊及法規技能相對連結均存在。
+B8 面板以 Linux headless Chromium、file:// 通過 22 項檢查，涵蓋瀏覽器當天及模擬跨日、忽略快照日期、日期篩選、欄位套用／取消／重新整理保存／恢復預設與桌面／手機亮暗。4 張 1920／390 截圖逐張確認無破版。B7 說明頁檢查仍保存於 ui-validation-b7.json，未將 B8 面板結果冒充說明頁重測。私人快照保留 27 筆契約及組織核決設定；2026-10-07 日期檢視為逾期 9、90 天內 1、未載明 10，自動續約來源未載明所以 0。
 
-電子簽章法官方取得成功，存入私人交付的法規新版本目錄，包含來源及取得日期；施行核對檔標「未查證」。完整證據在私人 ui-validation-b7.json；git diff --check 通過。法規工具的 13 個測試仍為假回應測試，不等同逐條施行核對。
+電子簽章法官方取得成功，存入私人交付的法規新版本目錄，包含來源及取得日期；施行核對檔標「未查證」。B7 法規證據在私人 ui-validation-b7.json，B8 面板證據在 ui-validation-b8.json；git diff --check 通過。法規工具的 13 個測試仍為假回應測試，不等同逐條施行核對。
 
 ## 接續與限制
 

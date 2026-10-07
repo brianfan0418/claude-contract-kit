@@ -1,6 +1,6 @@
 # 合約網頁系統交接
 
-2026-10-07 依 B6／B7 完成「共用檔案＋File System Access」原型。公開面板不包含公司名稱或 logo；B7 另依使用者指示修改根目錄交接及台灣法規技能，不 push。根目錄 README 已指向本檔，現行操作依以下說明。
+2026-10-07 依 B6～B8 完成「共用檔案＋File System Access」原型。公開面板不包含公司名稱或 logo；B7 另依使用者指示修改根目錄交接及台灣法規技能，不 push。根目錄 README 已指向本檔，現行操作依以下說明。
 
 ## 開啟與重建
 
@@ -15,8 +15,8 @@ node dashboard/test_datasource.js
 
 ## 已驗證與限制
 
-- 根目錄 README 原 discovery 指令 65 項通過，無需 PYTHONPATH；dashboard discovery 30 項通過，包含 CSV／Markdown／案件格式、快照產生、缺值、schema 改名、logo 及 Node 寫入模擬測試。
-- Node 模擬 directory handle 的 23 項檢查通過，驗證新增、更新、進度新檔、狀態流程、來源內容保存、權限失效與樂觀衝突。
+- 根目錄 README 原 discovery 指令 69 項通過，無需 PYTHONPATH；dashboard discovery 34 項通過，包含 CSV／Markdown／案件格式、快照產生、缺值、schema 改名、logo 及 Node 寫入模擬測試。
+- Node 模擬 directory handle 的 28 項檢查通過，驗證新增、更新、進度新檔、狀態流程、來源內容保存、權限失效與樂觀衝突。
 - Linux headless Chromium 直接 file:// 開啟：安全內容及 picker API 存在。UI 新增／進度表單用模擬 handle 保存；沒有自動化操作真實資料夾選擇視窗。
 - **Windows Edge 實機未測**，包括 UNC／網路磁碟與授權保存。File System Access 沒有跨電腦原子 compare-and-swap；主檔同時編輯仍需協調。
 - 私人說明頁、公司 logo、27 筆年報摘錄與 4 件虛構案件留在 tw-admin-ai，沒有納入公開 repo。來源未揭露的欄位留白；年報摘要不當作合約全文。
@@ -36,3 +36,10 @@ node dashboard/test_datasource.js
 ## B7 驗收修正
 
 套件與直接 discovery 分別採相對／一般匯入，mock 使用已匯入模組的 subprocess 物件。私人說明頁單欄卡片改自然列高；7 張桌面／手機亮色圖逐張檢查，24 項瀏覽器檢查通過。法規來源、手冊連結及重建設定的證據依根目錄 [交接](../docs/HANDOFF.md)，不在此重複法規規則。Windows Edge 實機授權仍未測。
+
+## B8 資料呈現
+
+- 日期提醒只依瀏覽器當天本地日期及有效到期日，不依狀態，新增「到期日未載明」。每分鐘及分頁重新顯示時重算；缺續約／通知資料不推測。
+- 產生器缺合約編號時自動給唯一 C-年份-流水號並標 system，只寫快照；私人來源已另保存系統編號與年報原文名稱。
+- 全空的常用欄位預設隱藏；原生 dialog 以勾選、套用／取消及恢復預設管理欄位，合約／案件偏好分開保存，儲存失敗不阻擋介面。
+- 69 個根目錄 unittest、34 個 dashboard unittest、28 個 Node 檢查及 22 個瀏覽器檢查通過；4 張 1920／390 亮暗截圖逐張查看，證據留私人 ui-validation-b8.json。

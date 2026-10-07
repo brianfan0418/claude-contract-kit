@@ -52,12 +52,12 @@ def enrich(row, today):
         except OverflowError:
             pass
     ndays = (deadline - today).days if deadline else None
-    expired = row.get('status') == '已到期' or (row.get('status') == '有效' and days is not None and days < 0)
-    active = row.get('status') == '有效' and not expired
+    expired = days is not None and days < 0
+    active = days is not None and days >= 0
     out.update(days_to_end=days, notice_deadline=deadline.isoformat() if deadline else '',
                days_to_notice=ndays, is_active=active, is_expired=expired,
                is_expiring=active and days is not None and 0 <= days <= 90,
-               is_notice_due=active and row.get('renewal_type') == '自動續約' and ndays is not None and 0 <= ndays <= 90)
+               is_notice_due=active and row.get('renewal_type') == '自動續約' and ndays is not None and ndays <= 90, is_end_unknown=end is None)
     return out
 
 def read_register(path):
@@ -196,9 +196,14 @@ def build_payload(register_path, today, fields_path=DEFAULT_FIELDS, logo=None, m
         for path in sorted(Path(markdown_dir).glob('*.md')):
             values, _ = read_markdown(path)
             rows.append({k: json.dumps(v, ensure_ascii=False) if isinstance(v, (list, dict)) else str(v) for k, v in values.items()})
-    contracts = []; seen = set()
+    contracts = []; seen = set(); reserved = {str(r.get('contract_id') or '').strip() for r in rows}; next_id = 1
     for index, row in enumerate(rows, 1):
-        key = row.get('contract_id') or f'IMPORT-{index:04d}'
+        key = str(row.get('contract_id') or '').strip()
+        if not key:
+            while f'C-{today.year}-{next_id:04d}' in reserved: next_id += 1
+            key = f'C-{today.year}-{next_id:04d}'; next_id += 1; reserved.add(key)
+            row['contract_id_origin'] = 'system'
+        row['contract_id'] = key
         if key in seen: raise ValueError(f'重複合約編號：{key}')
         seen.add(key); contracts.append({'id': key, 'fields': row})
     cases = []; progress = {}; review = {}
