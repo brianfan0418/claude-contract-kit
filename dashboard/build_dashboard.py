@@ -11,6 +11,7 @@ import datetime as dt
 import json
 import sys
 import hashlib
+import uuid
 import urllib.request
 import urllib.error
 from pathlib import Path
@@ -260,14 +261,14 @@ def import_api(database, base):
                 current = existing[import_key]
                 if name in ('contracts', 'cases'):
                     merged = dict(fields={**current.get('fields', {}), **record['fields']})
-                    request(name+'/'+quote(current['id'], safe=''), 'PATCH', merged)
+                    request(name+'/'+quote(str(current['id']), safe=''), 'PATCH', merged)
                 else:
                     comparable = {k: v for k, v in current.items() if k not in ('id', 'import_key')}
                     expected = {k: v for k, v in record.items() if k != 'id'}
                     if comparable != expected: raise ValueError(f'{name}/{import_key}: 既有事件不同，不覆寫')
                 result = current
             else:
-                record.pop('id')
+                record['id'] = uuid.uuid4().hex
                 record['import_key'] = import_key
                 if name == 'cases': record['case_number'] = import_key
                 result = request(name, 'POST', record)

@@ -55,8 +55,8 @@ class CliTest(unittest.TestCase):
             calls.append((path,method,body));return {'id':'server1',**(body or {})} if method=='POST' else []
         c.request=request
         result=c.create('cases',{'fields':fields(),'user':'甲','comment':'收到','attachment_version':'V1'})
-        self.assertEqual(result['id'],'server1');self.assertTrue(result['case_number'].startswith('CASE-'))
-        event=calls[-1][2];self.assertEqual(event['case_id'],'server1');self.assertEqual(event['to_stage'],'收件')
+        self.assertRegex(result['id'], r'^[a-f0-9]{32}$');self.assertTrue(result['case_number'].startswith('CASE-'))
+        event=calls[-1][2];self.assertEqual(event['case_id'],result['id']);self.assertEqual(event['to_stage'],'收件')
 
     def test_invalid_transition_has_no_mutation(self):
         c=self.client();c.read=lambda *a:{'id':'a','stage':'收件'}
@@ -108,6 +108,21 @@ class CliTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     c.update('contracts', 'legacy', {'fields': change, 'user': '甲', 'comment': '核對'})
                 request.assert_not_called()
+
+    def test_v0_post_sets_string_ids_and_numeric_legacy_ids_can_be_updated(self):
+        c = self.client()
+        def request(path, method='GET', body=None):
+            return dict(body) if method == 'POST' else []
+        c.request = request
+        created = c.create('cases', {'fields': fields(), 'user': '甲', 'comment': '收到'})
+        self.assertRegex(created['id'], r'^[a-f0-9]{32}$')
+        old = {'id': 7, 'fields': {'title': '', 'status': ''}}
+        c.read = lambda *a: old
+        with patch.object(c, 'request', return_value=old) as write:
+            c.update('contracts', '7', {'fields': {'notes': '補充'}, 'user': '甲', 'comment': '核對'})
+            self.assertEqual(write.call_args.args[0], 'contracts/7')
+        c = self.client(); c.request = lambda *a: [old]
+        self.assertEqual(c.read('contracts', '7')['id'], 7)
 
     def test_cli_invalid_input_returns_nonzero(self):
         with tempfile.TemporaryDirectory() as d:

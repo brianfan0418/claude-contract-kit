@@ -80,7 +80,7 @@ class Client:
 
     def read(self, kind, key):
         for r in self.request(kind):
-            if key in (r['id'], r.get('case_number') if kind == 'cases' else r.get('fields', {}).get('contract_id')):
+            if str(key) in tuple(str(v) for v in (r['id'], r.get('case_number') if kind == 'cases' else r.get('fields', {}).get('contract_id')) if v is not None):
                 return r
         raise ValueError('找不到紀錄')
 
@@ -105,7 +105,7 @@ class Client:
         fields = validate_fields(fields, config['schema'], kind == 'cases')
         if kind == 'contracts' and any(r['fields'].get('contract_id') == fields['contract_id'] for r in self.request(kind)):
             raise ValueError('合約編號已存在')
-        record = {'fields':fields, 'updated_by':body['user']}
+        record = {'id':uuid.uuid4().hex, 'fields':fields, 'updated_by':body['user']}
         if kind == 'cases':
             record.update(stage='收件', case_number=f'CASE-{dt.date.today():%Y%m%d}-{uuid.uuid4().hex[:8]}')
         result = self.request(kind, 'POST', record)
@@ -113,7 +113,7 @@ class Client:
         return result
 
     def log(self, key, body, before, after, action):
-        return self.request('progress', 'POST', {'case_id':key, 'time':dt.datetime.now(dt.timezone.utc).isoformat(), 'user':body['user'], 'action':action, 'from_stage':before, 'to_stage':after, 'comment':body['comment'], 'attachment_version':body.get('attachment_version', '')})
+        return self.request('progress', 'POST', {'id':uuid.uuid4().hex, 'case_id':key, 'time':dt.datetime.now(dt.timezone.utc).isoformat(), 'user':body['user'], 'action':action, 'from_stage':before, 'to_stage':after, 'comment':body['comment'], 'attachment_version':body.get('attachment_version', '')})
 
     def update(self, kind, key, body):
         self.actor(body)
@@ -122,7 +122,7 @@ class Client:
         changes = {**body['fields'], 'updated_at':dt.date.today().isoformat()}
         if kind == 'contracts': changes.pop('contract_id', None)
         fields = {**current['fields'], **validate_fields(changes, config['schema'], kind == 'cases', current['fields'])}
-        result = self.request(kind+'/'+urllib.parse.quote(current['id']), 'PATCH', {'fields':fields, 'updated_by':body['user']})
+        result = self.request(kind+'/'+urllib.parse.quote(str(current['id'])), 'PATCH', {'fields':fields, 'updated_by':body['user']})
         if kind == 'cases': self.log(current['id'], body, current['stage'], current['stage'], '更新欄位')
         return result
 
@@ -132,7 +132,7 @@ class Client:
         if stage != current['stage'] and stage not in config['transitions'].get(current['stage'], []):
             raise ValueError('不允許的狀態轉換')
         event = self.log(current['id'], body, current['stage'], stage, '加入意見' if stage == current['stage'] else '狀態變更')
-        self.request('cases/'+urllib.parse.quote(current['id']), 'PATCH', {'stage':stage, 'updated_by':body['user']})
+        self.request('cases/'+urllib.parse.quote(str(current['id'])), 'PATCH', {'stage':stage, 'updated_by':body['user']})
         return event
 
     def review_import(self, key, directory):
@@ -150,17 +150,17 @@ class Client:
             existing = [r for r in self.request(collection) if r['case_id'] == case['id']]
             for event in data[name]:
                 source_id = event.get('id') or event['version_id']
-                import_key = case['id']+':'+source_id
-                found = next((r for r in existing if r.get('import_key') == import_key or (name == 'versions' and r['version_id'] == source_id) or (name == 'comments' and r['id'] == case['id']+'-'+source_id)), None)
+                import_key = str(case['id'])+':'+source_id
+                found = next((r for r in existing if r.get('import_key') == import_key or (name == 'versions' and r['version_id'] == source_id) or (name == 'comments' and r['id'] == str(case['id'])+'-'+source_id)), None)
                 if found:
                     if name == 'versions' and found['clauses'] != event['clauses']:
                         raise ValueError('既有條款版本不同，不覆寫')
                     if name == 'comments': threads[event['thread_id']] = found['thread_id']
                     continue
                 record = dict(event, case_id=case['id'], import_key=import_key)
-                record.pop('id', None)
+                record['id'] = uuid.uuid4().hex
                 if name == 'comments':
-                    record['thread_id'] = threads.setdefault(event['thread_id'], case['id']+':'+event['thread_id'])
+                    record['thread_id'] = threads.setdefault(event['thread_id'], str(case['id'])+':'+event['thread_id'])
                 self.request(collection, 'POST', record); count += 1
         return {'imported':count,'case_id':case['id']}
 

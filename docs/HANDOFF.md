@@ -1,6 +1,6 @@
 # 交接
 
-最後更新：2026-10-07 09:51（台灣時間）
+最後更新：2026-10-07 10:44（台灣時間）
 
 ## 現況
 
@@ -50,3 +50,9 @@ node dashboard/test_datasource.js             19 checks，0 failed
 - 單一法規的正式 API 查詢端點查不到；官方 API 是批次 ZIP，本工具按代碼的條文抓取使用 HTML 解析，版型改動時可能拒收。
 - Windows、Cowork 執行程式未實測；XML ZIP 未下載驗證。法規個案適用及未生效修法的逐條版本仍須法務確認。
 - 私人年報表格文字已讀取，PDF 圖像逐列核對未完整完成；原始合約全文、公司最新狀態與未揭露欄位須承辦人提供，不能當作正式主檔驗證通過。
+
+## B12：穩定版本更新
+
+2026-10-07：固定 json-server 0.17.4，官方 engines.node >=12；啟動改用公開 create／defaults／router，移除自訂 lowdb 依賴。POST 明確指定字串 UUID，CLI 及匯入支援數字舊 ID，既有單欄更新驗證保留。82 個根目錄 unittest（含 dashboard 47 個）、22 項 Node 檢查全過，指定去識別規則零命中。私人 demo、鎖檔、說明頁與交付 README 同步。
+
+未完成：官方 Node 20 二進位及 SHA256 已驗證，但 npm ci 下載套件出現 EPIPE，期限前安裝未完成，Node 20／22 的 HTTP、CLI 新增／更新／進度實測皆 NOT_RUN；範例 db.json 完全未變更。接續先在可下載套件的環境完成 npm ci，再依 README 以 Node 20／22 各自啟動、確認磁碟寫回，停止程式並還原資料。私人 validation-b12.json 保存狀態。

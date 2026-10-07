@@ -4,17 +4,19 @@
 
 ## 安裝、啟動、停止
 
-需要 Node.js **22.12.0 以上**（Codex 外掛亦使用 Node.js）及 Python 3。從 dashboard 資料夾執行一次：
+json-server 0.17.4 的官方最低要求為 Node.js **12 以上**；本系統另需 Python 3。從 dashboard 資料夾執行一次：
 
 ```sh
-npm install json-server@1.0.0-beta.15 lowdb@7.0.1 --save-exact
+npm ci
 ```
 
 Windows 雙擊 start.bat；Linux 執行 ./start.sh。預設 3000 埠，可用 start.bat 3001／./start.sh 3001 改埠。腳本啟動 json-server 並開啟 http://127.0.0.1:3000/（localhost 同為本機）。保持程式視窗開啟；按 Ctrl+C 停止。安裝需要下載套件，安裝後操作資料不連外部服務；不使用 CDN 或外部字型。**Windows 啟動腳本實機未測**；Linux 啟動、REST 寫回及瀏覽器操作已實測。
 
-[官方 README](https://github.com/typicode/json-server) 的 v1 用法是 npx json-server data/db.json，預設提供 ./public，額外靜態目錄使用 -s app；不必 --watch。集合提供 GET、POST、PUT、PATCH、DELETE；單一 config 物件提供 GET、PUT、PATCH。[官方 service](https://github.com/typicode/json-server/blob/main/src/service.ts) 的寫入呼叫 db.write，更新會保存至 JSON。本案固定 beta.15，避免 beta 介面變更。
+[官方 v0 README](https://github.com/typicode/json-server/tree/v0) 說明 0.17 用法：`npx json-server --watch data/db.json --host 127.0.0.1 --port 3000 --static app`。`--watch` 監看檔案，`--static` 指定靜態目錄，`--host` 指定監聽位址。集合提供 GET／POST／PUT／PATCH／DELETE，config 單一物件亦有讀寫路由；寫入帶 application/json，REST 變更由內建 lowdb 保存至 JSON。[npm registry 套件資料](https://registry.npmjs.org/json-server/0.17.4) 的 engines.node 為 >=12；2026-10-07 執行 npm view json-server@0.17 engines version 確認最新 0.17 為 0.17.4。
 
-實測 beta.15 [啟動原始碼](https://github.com/typicode/json-server/blob/main/src/bin.ts) 雖解析 --host，listen 呼叫未帶 host。因此 start.mjs 使用該版本的 createApp 與 lowdb JSONFile，以 Node HTTP server 明確 listen(port, '127.0.0.1')，其他電腦無法連入。程式啟動後只由 REST 寫入，不監看外部直接改檔。此程式依固定版本內部介面載入；升級套件須重跑測試及本機寫入驗證。
+start.mjs 使用官方公開的 create／defaults／router，明確 listen(port, '127.0.0.1')；defaults 提供 app（私人版為面板）的靜態網頁及 JSON 解析，關閉 CORS 並拒絕非本機 Origin。啟動腳本檢查 Node.js 最低版本；本程式不啟用檔案監看，資料由 REST 寫入。直接依套件清單安裝亦可使用 npm install json-server@0.17.4 --save-exact。
+
+0.17 的未分頁 GET 回傳全部陣列；分頁使用 _page／_limit（預設每頁 10），頁數連結與總數在回應標頭；巢狀欄位篩選使用 fields.department 等點記法。本面板載入全部集合，篩選與排序在前端處理，未使用 v1 的分頁物件或 _per_page。PATCH 帶完整合併後的 fields，保留未變更欄位；PUT／PATCH 不更改 id，POST 可指定未重複的 id。
 
 ## 資料與寫入
 
@@ -27,7 +29,7 @@ Windows 雙擊 start.bat；Linux 執行 ./start.sh。預設 3000 埠，可用 st
 | config | 由 schema/fields.json 匯入的欄位、選項、流程，選擇性組織、核決、logo |
 | app/（私人交付為面板/） | 固定前端，啟動時 HTTP 載入資料；新增、更新後局部重新整理 |
 
-json-server beta.15 的 POST 自動生成字串 id；此內部 ID 與人使用的合約編號、case_number 案號分開。新合約留空編號時自動給 C-年份-流水號並記 contract_id_origin=system，新案件自動給 CASE-日期-隨機碼。新增時由 config.schema 檢查全部必填、日期、數值、整數、enum 及 pattern；更新只驗證本次變更欄位，保留既有空值與歷史原值。空值在畫面標「未載明」；變更欄位仍須符合必填與格式，不能新填未知 enum 或清空已有值的必填欄位。案件可不填所屬合約編號；處理人與意見必填。
+新增由網頁、CLI 與匯入工具明確指定字串 UUID id；0.17 POST 保留指定 id，也可能為未給號的外部輸入產生數字 id，CLI 相容數字舊 ID。此內部 ID 與人使用的合約編號、case_number 案號分開。新合約留空編號時自動給 C-年份-流水號並記 contract_id_origin=system，新案件自動給 CASE-日期-隨機碼。新增時由 config.schema 檢查全部必填、日期、數值、整數、enum 及 pattern；更新只驗證本次變更欄位，保留既有空值與歷史原值。空值在畫面標「未載明」；變更欄位仍須符合必填與格式，不能新填未知 enum 或清空已有值的必填欄位。案件可不填所屬合約編號；處理人與意見必填。
 
 流程：收件 → 法務審閱 → 退回需求部門／與對方協商（可多輪）→ 核准 → 簽署 → 歸檔。每次推進追加 progress，再更新案件狀態。狀態非法拒絕寫入。json-server 不提供多次 REST 呼叫的資料庫交易；若中途失敗，介面報錯，AI 核對進度與主檔後修復，不直接改 db.json。單人使用，不提供多人鎖或登入。AI 停止程式後以 Git 保存版本、提交者及差異，並備份整個資料夾；Git 不代替備份。
 
