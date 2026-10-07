@@ -21,6 +21,8 @@ app.use(jsonServer.defaults({logger:false,static:resolve(staticDir),noCors:true}
 // A complete MkDocs output can be shipped next to the application.
 const docsDir=resolve(process.env.CONTRACT_DOCS_DIR||'docs-site/site');
 if(existsSync(join(docsDir,'index.html')))app.use('/docs',jsonServer.defaults({logger:false,static:docsDir,noCors:true}));
+const demoDir=resolve('展示版');
+if(existsSync(join(demoDir,'index.html')))app.use('/demo',jsonServer.defaults({logger:false,static:demoDir,noCors:true}));
 app.use(jsonServer.router(database));
 const server=app.listen(port,'127.0.0.1',()=>{
  const url=`http://127.0.0.1:${port}/`;console.log(`Local contract system: ${url}\nData: ${database}\nStop: Ctrl+C`);

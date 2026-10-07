@@ -1,10 +1,10 @@
 # 交接
 
-最後更新：2026-10-07 10:44（台灣時間）
+最後更新：2026-10-07 B14（台灣時間）
 
 ## 現況
 
-獨立合約資源 repo 已有台灣製藥／生技／化妝品分類、台灣法與涉外合約手冊。已具備台灣法規技能、下載工具及本機合約系統。依使用者 B9 決定採副總電腦單人本機 HTTP、json-server REST 與 AI CLI；B11 修正既有缺值資料的單欄更新，建立本機 commit，由使用者 push；私人組織、logo、年報契約與介面截圖不進公開 repo。
+獨立合約資源 repo 已有台灣製藥／生技／化妝品分類、台灣法與涉外合約手冊。已具備台灣法規技能、下載工具及本機合約系統。正式版建議採個人電腦單人本機 HTTP、json-server REST 與 AI CLI；B11 修正既有缺值資料的單欄更新，建立本機 commit，由使用者 push；私人組織、logo、年報契約與介面截圖不進公開 repo。
 
 ## 完成項目與決定
 
@@ -63,3 +63,13 @@ node dashboard/test_datasource.js             19 checks，0 failed
 2026-10-07：面板頂部新增「說明」，start.mjs 以 /docs/ 提供完整 MkDocs 產物，安裝目錄與操作與調整方式集中於 [面板 README](../dashboard/README.md)。欄位出處改成標籤、原文引句、印刷頁／PDF 實體頁連結與驗證狀態，不顯示來源 JSON。欄寬支援拖曳、方向鍵、雙擊自動適應、localStorage 保存與數字輸入對話框；字級、側欄、抽屜、欄位選擇功能保留。SVG logo 匯入新增格式與外部 href／事件拒收檢查；公開範例不包含公司圖檔。虛構欄位以 demo_fields 明確列出，介面逐欄標「範例」。
 
 驗證：根目錄 discovery 83 tests（含 dashboard 48）、Node 25 checks 全過；Linux 實際 npm ci，Node 20.20.2 與 22.23.2 各自啟動，首頁、docs 與 API 200，CLI 新增案件、單欄更新與進度均確認寫回磁碟，測後逐位元還原。瀏覽器確認欄寬拖曳、方向鍵、數字輸入、雙擊適應及重新排序後保留；來源頁碼顯示印刷頁而連結對應 PDF 實體頁。私人範例 27 合約、4 案件的補值與 VM 種子同步，年報非空原文欄位逐欄保留。Windows 實機限制仍依 README，不能以 Linux 驗證代替。B12 的 NOT_RUN 為當輪歷史狀態，穩定版執行驗證已於 B13 補完。
+
+## B14：展示版與建議方案交付
+
+已加入瀏覽器展示資料層：與 REST 共用面板、schema 驗證、案件進度及審閱流程，只替換 api 方法。記憶體資料以 localStorage 保存，讀寫失敗有提示，原型資料不寫入正式資料庫。build_demo.py 將 db.json 作 seed 包裝為 file:// 可開的展示版；私人封裝亦可從面板目錄取得共用程式。
+
+逐條出處採 clause_id、quote 與 original_clauses，點連結捲至該條並移動焦點。原檔待上傳的登錄資料不顯示條款出處表；備註不攤開網址或來源字串。Markdown 匯入保留原文條款及示範 metadata。需求部門與法務承辦人由私人設定提供，公開程式不含公司資料。說明連結新分頁，README 採建議方案語氣，Git 為選用。
+
+驗證：根目錄 unittest 87 tests、dashboard 52 tests、Node 28 checks 通過。瀏覽器實際 file:// 新增案件，Page.reload 後仍在；出處連結聚焦對應條款；年報占位無出處表。MkDocs 字級四段並保存，VM 首頁、文件站與 API 200。私人證據保存在 ui-validation-b14.json 及 ui6/，不提交公開 repo。
+
+正式版仍使用 json-server 0.17.4 及本機 REST；第二階段需登入、案件權限、資料庫與備份。Windows 實機未測。下一個可執行動作：如需正式使用，可由您的 AI 依 dashboard/README.md 協助設定；開展示版則無需本機程式。

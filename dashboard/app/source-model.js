@@ -11,10 +11,12 @@
    let url='';try{const candidate=new URL(ref.source_url||ref.url);if(['https:','http:'].includes(candidate.protocol)){if(physical)candidate.hash='page='+physical;url=candidate.href}}catch{}
    return {key,label:schema.fields.find(f=>f.name===key)?.label||key,
     quote:ref.quote||ref.original_quote||(ref.transformation?'未載明（'+ref.transformation+'）':'未載明'),
-    source:printed?'年報第 '+printed+' 頁':(ref.source_name||'未載明'),url,
+    source:ref.clause_id?'第 '+ref.clause_id+' 條':printed?'年報第 '+printed+' 頁':(ref.source_name||'未載明'),url,
+    ...(ref.clause_id?{clauseId:String(ref.clause_id)}:{}),
     status:ref.verification_status||record.fields.verification_status||'未驗證'};
   });
  }
  function isDemoField(record,key){return record.demo===true&&Array.isArray(record.demo_fields)&&record.demo_fields.includes(key)}
- window.ContractSources={sourceRows,isDemoField};
+ function humanNotes(value){return String(value||'').replace(/https?:\/\/[^\s|）)]+/g,'').split(/[|｜]/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('來源')&&!s.startsWith('補充註記來源')).join('；')}
+ window.ContractSources={sourceRows,isDemoField,humanNotes};
 })();

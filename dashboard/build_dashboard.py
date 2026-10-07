@@ -210,9 +210,16 @@ def read_review(path):
 def build_payload(register_path, today, fields_path=DEFAULT_FIELDS, logo=None, markdown_dir=None, cases_dir=None):
     schema = json.loads(Path(fields_path).read_text(encoding='utf-8'))
     rows = read_register(register_path) if register_path else []
+    metadata = [{} for _ in rows]
     if markdown_dir:
         for path in sorted(Path(markdown_dir).glob('*.md')):
             values, _ = read_markdown(path)
+            extra = {k: values.pop(k) for k in ('original_status', 'original_clauses', 'demo', 'demo_fields') if k in values}
+            if 'original_clauses' in extra and not isinstance(extra['original_clauses'], list):
+                raise ValueError(f'{path}: original_clauses 須為 JSON 陣列')
+            if 'demo' in extra:
+                extra['demo'] = extra['demo'] is True or str(extra['demo']).lower() == 'true'
+            metadata.append(extra)
             rows.append({k: json.dumps(v, ensure_ascii=False) if isinstance(v, (list, dict)) else str(v) for k, v in values.items()})
     contracts = []; seen = set(); reserved = {str(r.get('contract_id') or '').strip() for r in rows}; next_id = 1
     for index, row in enumerate(rows, 1):
@@ -223,7 +230,7 @@ def build_payload(register_path, today, fields_path=DEFAULT_FIELDS, logo=None, m
             row['contract_id_origin'] = 'system'
         row['contract_id'] = key
         if key in seen: raise ValueError(f'重複合約編號：{key}')
-        seen.add(key); contracts.append({'id': key, 'fields': row})
+        seen.add(key); contracts.append({'id': key, 'fields': row, **metadata[index - 1]})
     cases = []; progress = {}; review = {}
     if cases_dir:
         paths = sorted(Path(cases_dir).glob('*.md')) + sorted(p.parent for p in Path(cases_dir).glob('*/index.md'))
@@ -275,6 +282,7 @@ def import_api(database, base):
                 current = existing[import_key]
                 if name in ('contracts', 'cases'):
                     merged = dict(fields={**current.get('fields', {}), **record['fields']})
+                    merged.update({key: record[key] for key in ('original_status', 'original_clauses', 'demo', 'demo_fields') if key in record})
                     request(name+'/'+quote(str(current['id']), safe=''), 'PATCH', merged)
                 else:
                     comparable = {k: v for k, v in current.items() if k not in ('id', 'import_key')}

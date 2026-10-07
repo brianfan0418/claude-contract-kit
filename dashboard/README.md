@@ -1,16 +1,16 @@
 # 本機合約系統
 
-第一階段由一人在 Windows 電腦使用。瀏覽器開本機 HTTP，json-server 讀寫 data/db.json；人與 Codex／Claude 經同一個 REST 介面操作。原檔唯讀保留，Markdown 保存文字及來源。第二階段將網頁、資料庫與資料夾搬到內網正式伺服器，加入公司登入、案件權限、正式資料庫、備份與維運；本輪未實作第二階段。
+建議方案：第一階段由一人在 Windows 電腦使用。瀏覽器開本機 HTTP，json-server 讀寫 data/db.json；人與 Codex／Claude 經同一個 REST 介面操作。原檔唯讀保留，Markdown 保存文字及來源。第二階段將網頁、資料庫與資料夾搬到內網正式伺服器，加入公司登入、案件權限、正式資料庫、備份與維運；第二階段尚未實作。
 
-## 安裝、啟動、停止
+## 展示與正式使用建議
 
-json-server 0.17.4 的官方最低要求為 Node.js **12 以上**；本系統另需 Python 3。從 dashboard 資料夾執行一次：
+展示版可直接開啟；如需實際使用，可由您的 AI 依原始碼與 README 協助設定。正式版與展示版共用 app.js、CSS、驗證及案件流程；展示版只替換資料層，使用記憶體及包 try/catch 的 localStorage。頂部標示「展示版：資料只存在本瀏覽器」。如保存受限，改用記憶體並提示；file:// 的保存行為依瀏覽器而異，參考 [MDN](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage)。
 
 ```sh
-npm ci
+python3 dashboard/build_demo.py --db dashboard/data/db.json --out /path/to/展示版
 ```
 
-Windows 雙擊 start.bat；Linux 執行 ./start.sh。預設 3000 埠，可用 start.bat 3001／./start.sh 3001 改埠。腳本啟動 json-server 並開啟 http://127.0.0.1:3000/（localhost 同為本機）。保持程式視窗開啟；按 Ctrl+C 停止。安裝需要下載套件，安裝後操作資料不連外部服務；不使用 CDN 或外部字型。**Windows 啟動腳本實機未測**；Linux 啟動、REST 寫回及瀏覽器操作已實測。
+如需設定正式本機系統，可由您的 AI 確認 Node.js 12 以上後於 dashboard 執行 npm ci，再以 node start.mjs 啟動；預設 3000 埠，停止為 Ctrl+C。CLI／匯入另需 Python 3，Word 修訂匯入另需 Pandoc。平台啟動腳本保留供 AI 參考。Windows 實機未測；Linux HTTP 與寫回已實測。網頁不使用 CDN 或外部字型。
 
 [官方 v0 README](https://github.com/typicode/json-server/tree/v0) 說明 0.17 用法：`npx json-server --watch data/db.json --host 127.0.0.1 --port 3000 --static app`。`--watch` 監看檔案，`--static` 指定靜態目錄，`--host` 指定監聽位址。集合提供 GET／POST／PUT／PATCH／DELETE，config 單一物件亦有讀寫路由；寫入帶 application/json，REST 變更由內建 lowdb 保存至 JSON。[npm registry 套件資料](https://registry.npmjs.org/json-server/0.17.4) 的 engines.node 為 >=12；2026-10-07 執行 npm view json-server@0.17 engines version 確認最新 0.17 為 0.17.4。
 
@@ -31,7 +31,7 @@ start.mjs 使用官方公開的 create／defaults／router，明確 listen(port,
 
 新增由網頁、CLI 與匯入工具明確指定字串 UUID id；0.17 POST 保留指定 id，也可能為未給號的外部輸入產生數字 id，CLI 相容數字舊 ID。此內部 ID 與人使用的合約編號、case_number 案號分開。新合約留空編號時自動給 C-年份-流水號並記 contract_id_origin=system，新案件自動給 CASE-日期-隨機碼。新增時由 config.schema 檢查全部必填、日期、數值、整數、enum 及 pattern；更新只驗證本次變更欄位，保留既有空值與歷史原值。空值在畫面標「未載明」；變更欄位仍須符合必填與格式，不能新填未知 enum 或清空已有值的必填欄位。案件可不填所屬合約編號；處理人與意見必填。
 
-流程：收件 → 法務審閱 → 退回需求部門／與對方協商（可多輪）→ 核准 → 簽署 → 歸檔。每次推進追加 progress，再更新案件狀態。狀態非法拒絕寫入。json-server 不提供多次 REST 呼叫的資料庫交易；若中途失敗，介面報錯，AI 核對進度與主檔後修復，不直接改 db.json。單人使用，不提供多人鎖或登入。AI 停止程式後以 Git 保存版本、提交者及差異，並備份整個資料夾；Git 不代替備份。
+流程：收件 → 法務審閱 → 退回需求部門／與對方協商（可多輪）→ 核准 → 簽署 → 歸檔。每次推進追加 progress，再更新案件狀態。狀態非法拒絕寫入。json-server 不提供多次 REST 呼叫的資料庫交易；若中途失敗，介面報錯，AI 核對進度與主檔後修復，不直接改 db.json。單人使用，不提供多人鎖或登入。系統本身保留版本與處理紀錄；若您的 AI 需要追蹤自己修改的檔案，可選用 Git。正式使用建議停止程式後備份完整資料夾；Git 不代替備份。
 
 ## AI 命令列工具
 
@@ -49,7 +49,7 @@ python3 dashboard/tools/contract_cli.py review-import CASE-20261007-12345678 --c
 
 ## 匯入與測試
 
-初次可由 CSV 或 Markdown 建立不存在的 db.json；既有資料只能 --api 匯入，不直接覆寫檔案。請先備份、核對來源再匯入；主檔依編號合併欄位，歷史 progress、審閱事件只加入，差異事件拒絕覆寫。
+初次可由 CSV 或 Markdown 建立不存在的 db.json；既有資料只能 --api 匯入，不直接覆寫檔案。建議先備份、核對來源再匯入；主檔依編號合併欄位，歷史 progress、審閱事件只加入，差異事件拒絕覆寫。
 
 ```sh
 python3 dashboard/build_dashboard.py --register dashboard/sample_register.csv --out /new/path/data/db.json
@@ -71,10 +71,12 @@ node dashboard/test_datasource.js
 Word 修訂稿由 import_review.py 使用本機 Pandoc --track-changes=all -t json，產生唯讀匯入來源版本與註解，再經 CLI review-import 寫入本機介面。複雜 inline／跨條號註解拒收，對照原稿驗收。依據：[Pandoc](https://pandoc.org/MANUAL.html#option--track-changes)。
 
 
-## B13：文件路由、欄位出處與欄寬
+## 文件路由、欄位出處與欄寬
 
-json-server 的 [v0 公開模組 API](https://github.com/typicode/json-server/tree/v0#module) 提供 defaults 的 static 選項；將完整 MkDocs 產物放在 `docs-site/site/`，由 start.mjs 掛於 `/docs/`。另可用 `CONTRACT_DOCS_DIR` 指定建置產物目錄。面板頂部「說明」開啟同一程式的 `/docs/index.html`。
+json-server 的 [v0 公開模組 API](https://github.com/typicode/json-server/tree/v0#module) 提供 defaults 的 static 選項；將完整 MkDocs 產物放在 `docs-site/site/`，由 start.mjs 掛於 `/docs/`。另可用 `CONTRACT_DOCS_DIR` 指定建置產物目錄。面板頂部「說明」以新分頁開啟同一程式的 `/docs/index.html`。
 
 欄寬採 [Microsoft Fluent DataGrid](https://fluentui-blazor.azurewebsites.net/datagrid) 的 ResizableColumns 拖曳邊界與鍵盤調整概念；vanilla 實作遵循 [WAI-ARIA Separator／Window Splitter](https://www.w3.org/WAI/ARIA/apg/patterns/windowsplitter/)。表頭邊界可拖曳，聚焦後左右鍵調整 16px、Shift＋左右鍵 32px，Home／End 選 80／1000px；雙擊或 Enter 按目前顯示資料自動適應。「欄寬」可直接輸入尺寸，提供不拖曳的單指標操作方式。合約與案件的欄寬分別保存，localStorage 失敗時仍可使用。
 
 欄位出處以欄位名稱、原文引句、來源與驗證狀態呈現。頁碼標示採印刷頁，PDF 連結採實體頁；缺原文與驗證資料不推定。`demo: true` 加 `demo_fields` 列出虛構補值欄位，介面只對這些值標「範例」，原文摘錄不加範例標記。`--logo` 支援 SVG 及點陣圖；SVG 拒絕 script、事件屬性與外部 href。公司圖檔只放私人交付。
+
+欄位出處可使用 clause_id 與 quote；明細點條號跳至 original_clauses 的原文。Markdown 匯入可附 original_status、original_clauses、demo 及 demo_fields，保存在主檔 metadata，與欄位分開。既有清冊尚無原檔時建議標 pending，不將清冊當作合約條款出處。備註的網址與原始來源字串不展開；來源以短標與連結呈現。

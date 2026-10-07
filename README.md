@@ -17,9 +17,9 @@
 | `build_register.py` | 驗證 frontmatter 與引用，產生 CSV | 已有符合規格的 Markdown 合約庫 |
 | `dashboard/` | 瀏覽器面板與資料產生工具 | 查看分類、到期與通知截止日 |
 
-Claude Code：只複製使用者選定的完整 skill 目錄至專案 `.claude/skills/`，先備份同名內容；將 `<合約工具包資料夾>` 替換為本 repo 的絕對路徑。手冊複製至私人專案，由法務填寫公司立場，skill 改指向該份手冊，避免在公開 repo 保存公司資料。
+Claude Code：建議僅選用您已採用的完整 skill 目錄至專案 `.claude/skills/`，先備份同名內容；將 `<合約工具包資料夾>` 替換為本 repo 的絕對路徑。手冊複製至私人專案，由法務填寫公司立場，skill 改指向該份手冊，避免在公開 repo 保存公司資料。
 
-Claude 桌面版 Cowork：可請 Claude 在授權資料夾讀取選定 skill 與手冊；需要封裝外掛時，依 [office-kit 的採用指南](https://github.com/brianfan0418/claude-office-kit/blob/main/GUIDE-FOR-CLAUDE.md) 的官方結構選入本 repo 的 skills、schema 與程式，並調整內部路徑。此 repo 本身未附可直接安裝的外掛；Python 執行與資料夾存取須在 Cowork 實測。
+Claude 桌面版 Cowork：可由您的 AI 協助 在授權資料夾讀取選定 skill 與手冊；需要封裝外掛時，依 [office-kit 的採用指南](https://github.com/brianfan0418/claude-office-kit/blob/main/GUIDE-FOR-CLAUDE.md) 的官方結構選入本 repo 的 skills、schema 與程式，並調整內部路徑。此 repo 本身未附可直接安裝的外掛；Python 執行與資料夾存取須在 Cowork 實測。
 
 ## 文件轉檔與資料流程
 
@@ -33,7 +33,7 @@ Claude 桌面版 Cowork：可請 Claude 在授權資料夾讀取選定 skill 與
 4. contract-review 引用公司手冊，contract-compare 比較版本；手冊尚未填立場時列問題，不自行判定符合公司標準。
 5. 最終簽署版重新登錄與驗證；義務、續約鏈與通知期限由原文或使用者確認後更新。
 
-由 Claude 在本 repo 根目錄執行（路徑替換為使用者資料夾）：
+可由您的 AI 在本 repo 根目錄執行（路徑替換為使用者資料夾）：
 
 ```text
 python3 build_register.py --md-dir 合約庫/md --out 合約庫/register.csv --source-root 合約庫/原檔
