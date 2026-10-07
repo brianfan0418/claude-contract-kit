@@ -157,6 +157,38 @@ def read_case_directory(path):
     example = str(meta.pop('example', '')).lower() == 'true'
     return {'id': key, 'fields': meta, 'stage': stage, 'example': example}, entries
 
+def read_review(path):
+    root = Path(path) / 'review'; data = {'versions': [], 'comments': []}
+    for name in data:
+        for file in sorted((root / name).glob('*.md')):
+            meta, body = read_markdown(file)
+            if name == 'comments': meta['comment'] = body.strip()
+            data[name].append(meta)
+    data['versions'].sort(key=lambda v: [int(x) if x.isdigit() else x for x in __import__('re').split(r'(\d+)', str(v.get('version_id', '')))])
+    versions = {}; threads = {}; event_ids = set()
+    for version in data['versions']:
+        key = version.get('version_id')
+        if not key or key in versions or not isinstance(version.get('clauses'), list): raise ValueError(f'{path}: 審閱版本不符')
+        clauses = version['clauses']
+        if any(not c.get('id') or not isinstance(c.get('text'), str) for c in clauses) or len({c['id'] for c in clauses}) != len(clauses): raise ValueError(f'{path}: 條號或文字不符')
+        versions[key] = version
+    for event in data['comments']:
+        when = dt.datetime.fromisoformat(str(event.get('time', '')).replace('Z', '+00:00'))
+        if when.tzinfo is None or not event.get('user'): raise ValueError(f'{path}: 留言須有處理人及含時區時間')
+    data['comments'].sort(key=lambda e: dt.datetime.fromisoformat(e['time'].replace('Z', '+00:00')))
+    for e in data['comments']:
+        key = e.get('id'); thread = e.get('thread_id'); selector = e.get('selector', {})
+        clause = next((c for c in versions.get(e.get('version_id'), {}).get('clauses', []) if c['id'] == e.get('clause_id')), None)
+        if not key or key in event_ids or not thread or e.get('action') not in ('comment', 'resolve', 'reopen'): raise ValueError(f'{path}: 留言事件不符')
+        if not clause or selector.get('type') != 'TextQuoteSelector' or not selector.get('exact') or selector['exact'] not in clause['text']: raise ValueError(f'{path}: 原文錨點不符')
+        if e['action'] == 'comment' and not e['comment'].strip(): raise ValueError(f'{path}: 留言不可空白')
+        if thread not in threads:
+            if e['action'] != 'comment' or key != thread: raise ValueError(f'{path}: 缺少首筆留言')
+            threads[thread] = e
+        elif any(e.get(k) != threads[thread].get(k) for k in ('clause_id', 'version_id', 'selector')): raise ValueError(f'{path}: 留言串錨點變更')
+        event_ids.add(key)
+    return data
+
 def build_payload(register_path, today, fields_path=DEFAULT_FIELDS, logo=None, markdown_dir=None, cases_dir=None):
     schema = json.loads(Path(fields_path).read_text(encoding='utf-8'))
     rows = read_register(register_path) if register_path else []
@@ -169,16 +201,17 @@ def build_payload(register_path, today, fields_path=DEFAULT_FIELDS, logo=None, m
         key = row.get('contract_id') or f'IMPORT-{index:04d}'
         if key in seen: raise ValueError(f'重複合約編號：{key}')
         seen.add(key); contracts.append({'id': key, 'fields': row})
-    cases = []; progress = {}
+    cases = []; progress = {}; review = {}
     if cases_dir:
         paths = sorted(Path(cases_dir).glob('*.md')) + sorted(p.parent for p in Path(cases_dir).glob('*/index.md'))
         for path in paths:
             record, entries = read_case_directory(path) if path.is_dir() else read_case(path)
             if any(r['id'] == record['id'] for r in cases): raise ValueError('重複案件編號')
             cases.append(record); progress[f'cases:{record["id"]}'] = entries
+            if path.is_dir(): review[record['id']] = read_review(path)
     return {'config': {'schema': schema, 'today': today.isoformat(), 'logo': logo or '',
                        'stages': STAGES, 'transitions': TRANSITIONS},
-            'records': {'contracts': contracts, 'cases': cases, 'progress': progress}}
+            'records': {'contracts': contracts, 'cases': cases, 'progress': progress, 'review': review}}
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description='合約 CSV／Markdown 與案件日誌轉 data.js')
@@ -188,6 +221,7 @@ def main(argv=None):
     parser.add_argument('--fields', default=str(DEFAULT_FIELDS))
     parser.add_argument('--out', default=str(HERE / 'app' / 'data' / 'data.js'))
     parser.add_argument('--logo'); parser.add_argument('--today')
+    parser.add_argument('--settings', help='私人組織與核決 JSON；只加入 organization／approvalAuthority，不改公開 schema')
     args = parser.parse_args(argv)
     today = parse_date(args.today) if args.today else dt.date.today()
     if today is None:
@@ -195,6 +229,10 @@ def main(argv=None):
     try:
         payload = build_payload(args.register or (None if args.md_dir else DEFAULT_REGISTER), today, args.fields,
                                 logo_data_uri(args.logo) if args.logo else None, args.md_dir, args.cases_dir)
+        if args.settings:
+            settings = json.loads(Path(args.settings).read_text(encoding='utf-8'))
+            for key in ('organization', 'approvalAuthority'):
+                if key in settings: payload['config'][key] = settings[key]
         out = Path(args.out); out.parent.mkdir(parents=True, exist_ok=True)
         raw = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c').replace('\u2028', '\\u2028').replace('\u2029', '\\u2029')
         temporary = out.with_name(out.name + '.tmp')

@@ -53,3 +53,29 @@ Fluent 2 Body 1 14px／20px、Subtitle 2 16px／22px、官方亮暗 alias tokens
 唯一視覺依據 [Fluent 2](https://fluent2.microsoft.design/)，原生 HTML 實作而非官方 React 元件。[System Icons](https://github.com/microsoft/fluentui-system-icons) SVG 內嵌，MIT 授權在 app/fluent-icons.LICENSE。分隔語意依 [WAI-ARIA Window Splitter](https://www.w3.org/WAI/ARIA/apg/patterns/windowsplitter/)。流程參考 [Ironclad](https://developer.ironcladapp.com/reference/webhooks)、[DocuSign CLM](https://www.docusign.com/blog/how-does-docusign-clm-work)；人可讀日誌借用 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 概念，檔案格式由本案定義。
 
 偏好設定仍以 localStorage 保存；file:// 的儲存行為由瀏覽器決定，另以 history.state 作同一分頁重新整理的備援，兩者均捕捉存取錯誤。跨瀏覽器、關閉分頁後的保留需在 Windows Edge 實測。依據：[MDN localStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage)。
+
+## 按條號線上審閱
+
+案件明細新增「審閱」分頁：上一輪／本輪條款依 id 對應，以最長共同子序列只標必要增刪（刪除線／底線，使用中性色）。長於一百萬個比較格的條款改用共同前綴／後綴，以限制瀏覽器記憶體。留言串顯示處理人、時間、待處理／已解決；可只看未解決，連接資料夾後可留言、回覆、解決及重新開啟。瀏覽器不直接改合約文字，條款新版本由 AI 匯入或建立；沒有自動接受建議。
+
+| 檔案 | 格式 |
+|---|---|
+| cases/案號/review/versions/V1.md | version_id；clauses 單行 JSON 陣列，每條含唯一 id、title、text；只新增，舊版本不改 |
+| cases/案號/review/comments/時間-UUID.md | id、thread_id、version_id、clause_id、user、含時區 time、action、selector；內文為留言 |
+
+留言 action 為 comment／resolve／reopen。首筆 thread_id=id；後續同串維持版本、條號及 selector。selector 含 type=TextQuoteSelector、exact、prefix、suffix，錨定不可變版本的原文。新增留言前比對最新版本，變動時拒寫；每個事件只新增新檔。多人的解決／重新開啟以時間順序重播；這仍不是跨電腦交易鎖。非法錨點或缺少串首筆拒收，快照生成失敗保留原快照。
+
+AI 與人同用這套格式；AI（Codex、Claude 皆可）轉檔、抽欄位、審閱、比對，預設交 Codex 執行以控制費用，驗收由另一個對話執行。
+
+Word 修訂稿匯入需本機 Pandoc（不連外）：
+
+```sh
+python3 dashboard/import_review.py /path/to/revised.docx --case-dir /path/to/cases/CASE-001 --previous V1 --current V2
+python3 dashboard/build_dashboard.py --md-dir /path/to/md --cases-dir /path/to/cases --out /path/to/面板/data/data.js --settings /path/to/設定/組織與核決.json
+```
+
+匯入器實際執行 pandoc --track-changes=all -t json，分成修訂前／後文字與 Word 註解，保留修訂作者與時間；不覆寫既有版本。支援段落、條號標題、清單與表格內段落；複雜圖形、未知 inline 或跨條號註解無法保證錨定，拒收並核對原稿。匯入不是 Word 排版重現，須以另一個對話對照原文驗收。原始 DOCX 保留唯讀。
+
+--settings 可加入私人 organization（units: id／name／path；people: name／unit）與 approvalAuthority（rules: department／text／source；caveat）。表單部門與處理人使用下拉選單；核准步驟附來源提示。設定只在提供參數時納入快照，公開 repo 不含真實組織或核決資料；不得將歷史公告當作目前有效授權。
+
+成熟依據：[GitHub PR 審閱](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/commenting-on-a-pull-request)、[Google 建議](https://support.google.com/docs/answer/6033474)、[W3C TextQuoteSelector](https://www.w3.org/TR/annotation-model/#text-quote-selector)、[Pandoc track-changes](https://pandoc.org/MANUAL.html#option--track-changes)、[WAI-ARIA 分頁](https://www.w3.org/WAI/ARIA/apg/patterns/tabs/)。本格式借用錨點概念，不宣稱完整 JSON-LD 標準相容。Windows Edge 實機仍未測。
