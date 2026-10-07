@@ -19,12 +19,17 @@ class BuildTest(unittest.TestCase):
   with self.assertRaises(ValueError):bd.build_payload(self.csv('contract_id,title\nC-1,a\nC-1,b\n'),TODAY)
  def test_schema_rename_and_addition(self):
   schema=json.loads(bd.DEFAULT_FIELDS.read_text());schema['fields'][1]['label']='契約名稱';schema['fields'].append({'name':'new','label':'新欄位','type':'string'});p=self.root/'schema.json';p.write_text(json.dumps(schema));data=bd.build_payload(SAMPLE,TODAY,p);self.assertEqual(data['config']['schema']['fields'][1]['label'],'契約名稱');self.assertEqual(data['config']['schema']['fields'][-1]['name'],'new')
- def test_data_script_no_html_and_safe_literals(self):
-  p=self.csv('contract_id,title\nC-1,</script>\n');out=self.root/'data.js';self.assertEqual(bd.main(['--register',str(p),'--out',str(out)]),0);s=out.read_text();self.assertTrue(s.startswith('/*'));self.assertNotIn('</script>',s);payload=json.loads(s.split('window.CONTRACT_DATA = ',1)[1][:-2]);self.assertEqual(payload['records']['contracts'][0]['fields']['title'],'</script>')
- def test_refresh_replaces_only_snapshot(self):
-  out=self.root/'data.js';out.write_text('old');self.assertEqual(bd.main(['--register',str(SAMPLE),'--out',str(out)]),0);self.assertFalse(out.with_name('data.js.tmp').exists());self.assertIn('CONTRACT_DATA',out.read_text())
- def test_failure_keeps_previous_snapshot(self):
-  out=self.root/'data.js';out.write_text('old');self.assertEqual(bd.main(['--register',str(self.root/'missing'),'--out',str(out)]),1);self.assertEqual(out.read_text(),'old')
+ def test_database_json_has_collections_and_literal_text(self):
+  source=self.csv('contract_id,title\nC-1,</script>\n');out=self.root/'db.json'
+  self.assertEqual(bd.main(['--register',str(source),'--out',str(out)]),0)
+  data=json.loads(out.read_text());self.assertEqual(data['contracts'][0]['fields']['title'],'</script>')
+  self.assertEqual(set(data),{'contracts','cases','progress','review_versions','review_comments','config'})
+ def test_existing_database_requires_api(self):
+  out=self.root/'db.json';out.write_text('old')
+  self.assertEqual(bd.main(['--register',str(SAMPLE),'--out',str(out)]),1);self.assertEqual(out.read_text(),'old')
+ def test_failure_keeps_existing_database(self):
+  out=self.root/'db.json';out.write_text('old')
+  self.assertEqual(bd.main(['--register',str(self.root/'missing'),'--out',str(out)]),1);self.assertEqual(out.read_text(),'old')
  def test_bad_today(self):self.assertEqual(bd.main(['--today','bad']),2)
  def test_logo_optional(self):
   data=base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aS1kAAAAASUVORK5CYII=');p=self.root/'generic.png';p.write_bytes(data);uri=bd.logo_data_uri(p);self.assertEqual(base64.b64decode(uri.split(',')[1]),data);self.assertEqual(bd.build_payload(SAMPLE,TODAY)['config']['logo'],'')
@@ -56,8 +61,13 @@ class BuildTest(unittest.TestCase):
   with self.assertRaises(ValueError):bd.read_case(self.write_case(['核准']))
  def test_case_snapshot_includes_timeline(self):
   self.write_case(['收件','法務審閱']);data=bd.build_payload(SAMPLE,TODAY,cases_dir=self.root);self.assertEqual(len(data['records']['cases']),1);self.assertEqual(len(data['records']['progress']['cases:CASE-1']),2)
- def test_frontend_file_access_and_no_network(self):
-  app=Path(__file__).parent/'app';html=(app/'index.html').read_text();self.assertNotIn('type="module"',html);self.assertIn('id="connect"',html);self.assertIn('id="editor"',html);self.assertIn('data/data.js',html);self.assertNotIn('fetch(', (app/'datasource.js').read_text())
+ def test_frontend_uses_http_and_has_no_folder_picker(self):
+  app=Path(__file__).parent/'app';html=(app/'index.html').read_text();self.assertNotIn('id="connect"',html)
+  self.assertIn('id="editor"',html);self.assertNotIn('data/data.js',html)
+  source=(app/'datasource.js').read_text();self.assertIn('fetch',source);self.assertNotIn('showDirectoryPicker',source)
+ def test_database_flattening_preserves_case_links(self):
+  self.write_case(['收件','法務審閱']);data=bd.database_from_payload(bd.build_payload(SAMPLE,TODAY,cases_dir=self.root))
+  self.assertEqual(data['progress'][0]['case_id'],'CASE-1');self.assertEqual(len({e['id'] for e in data['progress']}),2)
  def test_reminders_do_not_depend_on_status(self):
   for status in ['', '審閱中', '已終止', '有效']:
    self.assertTrue(bd.enrich({'end_date':'2026-10-06','status':status},TODAY)['is_expired'])
@@ -76,8 +86,8 @@ class BuildTest(unittest.TestCase):
   path=self.root/'source.md';path.write_text('---\ntitle: example\n---\noriginal body\n');old=path.read_bytes()
   r=bd.build_payload(None,TODAY,markdown_dir=self.root)['records']['contracts'][0]
   self.assertEqual(r['fields']['contract_id'],'C-2026-0001');self.assertEqual(path.read_bytes(),old)
-class FileSystemTest(unittest.TestCase):
- def test_node_write_conflict_and_progress(self):
+class HttpTest(unittest.TestCase):
+ def test_node_http_writes_and_progress(self):
   import subprocess,shutil
   node=shutil.which('node')
   if not node:self.skipTest('Node 未安裝；執行 test_datasource.js 需 Node')

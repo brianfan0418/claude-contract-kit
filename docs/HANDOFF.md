@@ -1,10 +1,10 @@
 # 交接
 
-最後更新：2026-10-07 08:33（台灣時間）
+最後更新：2026-10-07 09:26（台灣時間）
 
 ## 現況
 
-獨立合約資源 repo 已有台灣製藥／生技／化妝品分類、台灣法與涉外合約手冊。已具備台灣法規技能、下載工具及共用檔案面板。本輪修正日期提醒、系統編號與欄位選擇器，建立本機 commit，由使用者 push；私人組織、logo、年報契約與介面截圖不進公開 repo。
+獨立合約資源 repo 已有台灣製藥／生技／化妝品分類、台灣法與涉外合約手冊。已具備台灣法規技能、下載工具及本機合約系統。本輪依使用者 B9 決定改為副總電腦單人本機 HTTP、json-server REST 與 AI CLI，建立本機 commit，由使用者 push；私人組織、logo、年報契約與介面截圖不進公開 repo。
 
 ## 完成項目與決定
 
@@ -15,28 +15,26 @@
 - 有未生效註記時保存官方指定舊版與註記；公布版本及整部舊版均不自動認定為現行施行條文。`current_text_verified: false` 表示引用前仍須逐條核對施行狀態。快取附來源、修正／公布日期、抓取日期及時間，`law-cache/` 排除版本控制。
 - `playbook/playbook.md` 0.4 分列授權、國內／海外經銷、委託製造、原料供應、技術讓與、顧問、工程、租賃、融資與保密等要點，全部公司立場待填；`contract-review` 透過 tw-law 引用法規，未確認施行版本時只列問題。
 - `dashboard/sample_register.csv` 改為 13 筆、11 類虛構業別案例，表頭與 schema 範本一致，含多語、外幣、外國準據法及仲裁的虛構約定；保留既有提醒邊界與狀態數，未提供原文出處就留空，不補造引用。
-- 面板採共用檔案與 File System Access；B7 修正 `dashboard/test_review.py` 的套件匯入與 mock 目標，使根目錄及 dashboard 兩種 discovery 都可直接執行。詳細介面與資料格式依 [dashboard/HANDOFF.md](../dashboard/HANDOFF.md)。
+- B9 面板採 json-server 本機 HTTP；資料在 data/db.json，人與 AI 都經 REST 寫入，AI CLI 先檢查欄位。B7 的兩種 discovery 匯入修正保留。詳細介面與資料格式依 [dashboard/HANDOFF.md](../dashboard/HANDOFF.md)。
 - 私人年報主檔以清冊列次給系統編號，註明 system；顯示名稱照錄契約性質，另附頁碼及原文引句。其餘未揭露欄位留白，授信額度不當作合約總額，非已驗證的正式主檔。
 
 ## 已完成驗證
 
-2026-10-07 B8，於 repo 根目錄執行 README 原指令；沒有設定 PYTHONPATH：
+2026-10-07 B9，於 repo 根目錄執行原指令；沒有設定 PYTHONPATH：
 
 ```text
-python3 -m unittest discover -s .             69 tests，OK
-python3 -m unittest discover -s dashboard     34 tests，OK
-node dashboard/test_datasource.js             28 checks，0 failed
+python3 -m unittest discover -s .             79 tests，OK
+python3 -m unittest discover -s dashboard     44 tests，OK
+node dashboard/test_datasource.js             19 checks，0 failed
 ```
 
-根目錄已包含 dashboard 的 34 個 unittest，不重複計算總數。Node 28 個是模擬 directory handle 的寫入、衝突與審閱檢查，亦由 unittest 呼叫；不能當作 Windows 實機證據。
-
-B8 面板以 Linux headless Chromium、file:// 通過 22 項檢查，涵蓋瀏覽器當天及模擬跨日、忽略快照日期、日期篩選、欄位套用／取消／重新整理保存／恢復預設與桌面／手機亮暗。4 張 1920／390 截圖逐張確認無破版。B7 說明頁檢查仍保存於 ui-validation-b7.json，未將 B8 面板結果冒充說明頁重測。私人快照保留 27 筆契約及組織核決設定；2026-10-07 日期檢視為逾期 9、90 天內 1、未載明 10，自動續約來源未載明所以 0。
+根目錄已包含 dashboard 的 44 個 unittest，不重複計算總數；Node HTTP 模擬檢查也由 unittest 呼叫。實際 Linux json-server 的網頁與 CLI 寫回另行驗證，測後還原 27 筆契約、4 件範例案件。B9 本機／說明頁圖像與結果保存私人 ui-validation-b9.json；B7、B8 舊驗證留作歷史，不當作本機後端的測試。
 
 電子簽章法官方取得成功，存入私人交付的法規新版本目錄，包含來源及取得日期；施行核對檔標「未查證」。B7 法規證據在私人 ui-validation-b7.json，B8 面板證據在 ui-validation-b8.json；git diff --check 通過。法規工具的 13 個測試仍為假回應測試，不等同逐條施行核對。
 
 ## 接續與限制
 
-第一個可執行動作：以 Windows Edge 實機連接共用資料夾驗證授權及多人衝突；依 tw-law 取得方式保存法規，選定所引條號並核對施行註記；法務另填公司手冊的立場與接受範圍，再審實際簽署版。
+第一個可執行動作：在副總 Windows 電腦依 dashboard/README.md 安裝 Node.js 與套件，以 start.bat 啟動並驗證網頁及 CLI 寫回；依 tw-law 取得方式保存法規，選定所引條號並核對施行註記；法務另填公司手冊的立場與接受範圍，再審實際簽署版。
 
 - 單一法規的正式 API 查詢端點查不到；官方 API 是批次 ZIP，本工具按代碼的條文抓取使用 HTML 解析，版型改動時可能拒收。
 - Windows、Cowork 執行程式未實測；XML ZIP 未下載驗證。法規個案適用及未生效修法的逐條版本仍須法務確認。

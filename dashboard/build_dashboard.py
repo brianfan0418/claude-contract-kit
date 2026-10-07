@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""將合約 CSV／Markdown 與案件日誌轉為 file:// 可載入的 data.js。
+"""將合約 CSV／Markdown 與案件日誌匯入本機 json-server db.json。
 
 用法：python3 dashboard/build_dashboard.py --register dashboard/sample_register.csv
-      --out dashboard/app/data/data.js --logo logo.png --today YYYY-MM-DD
+      --out dashboard/data/db.json --logo logo.png --today YYYY-MM-DD
 """
 import argparse
 import base64
@@ -10,12 +10,15 @@ import csv
 import datetime as dt
 import json
 import sys
+import hashlib
+import urllib.request
+import urllib.error
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_FIELDS = HERE.parent / 'schema' / 'fields.json'
 DEFAULT_REGISTER = HERE.parent / 'schema' / 'register.csv'
-DEFAULT_OUT = HERE / 'app' / 'data'
+DEFAULT_OUT = HERE / 'data' / 'db.json'
 WINDOW_DAYS = 90
 STAGES = ['收件', '法務審閱', '退回需求部門', '與對方協商', '核准', '簽署', '歸檔']
 TRANSITIONS = {
@@ -218,13 +221,67 @@ def build_payload(register_path, today, fields_path=DEFAULT_FIELDS, logo=None, m
                        'stages': STAGES, 'transitions': TRANSITIONS},
             'records': {'contracts': contracts, 'cases': cases, 'progress': progress, 'review': review}}
 
+def database_from_payload(payload):
+    records = payload['records']
+    database = {name: [] for name in ('contracts', 'cases', 'progress', 'review_versions', 'review_comments')}
+    database.update(config=payload['config'], contracts=records['contracts'], cases=records['cases'])
+    for key, entries in records['progress'].items():
+        case_id = key.split(':', 1)[1]
+        for index, entry in enumerate(entries):
+            digest = hashlib.sha256(json.dumps(entry, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:12]
+            database['progress'].append(dict(entry, id=f'{case_id}-{index:04d}-{digest}', case_id=case_id))
+    for case_id, review in records['review'].items():
+        for version in review['versions']:
+            database['review_versions'].append(dict(version, id=case_id+'-'+version['version_id'], case_id=case_id))
+        for event in review['comments']:
+            database['review_comments'].append(dict(event, id=case_id+'-'+event['id'], thread_id=case_id+'-'+event['thread_id'], case_id=case_id))
+    return database
+
+def import_api(database, base):
+    from urllib.parse import quote, urlparse
+    parsed = urlparse(base)
+    if parsed.scheme != 'http' or parsed.hostname not in ('localhost', '127.0.0.1', '::1'):
+        raise ValueError('第一階段只可匯入本機 HTTP 位址')
+    def request(path, method='GET', body=None):
+        data = json.dumps(body, ensure_ascii=False).encode() if body is not None else None
+        req = urllib.request.Request(base.rstrip('/')+'/'+path, data=data, method=method, headers={'Content-Type':'application/json'})
+        with urllib.request.urlopen(req, timeout=15) as response: return json.load(response)
+    case_ids = {}
+    for name in ('contracts', 'cases', 'progress', 'review_versions', 'review_comments'):
+        rows = request(name)
+        existing = {r.get('import_key', r['id']): r for r in rows}
+        if name == 'contracts': existing.update({r.get('fields', {}).get('contract_id', r['id']): r for r in rows})
+        if name == 'cases': existing.update({r.get('case_number', r['id']): r for r in rows})
+        for original in database[name]:
+            record = dict(original)
+            import_key = record['id']
+            if 'case_id' in record: record['case_id'] = case_ids.get(record['case_id'], record['case_id'])
+            if import_key in existing:
+                current = existing[import_key]
+                if name in ('contracts', 'cases'):
+                    merged = dict(fields={**current.get('fields', {}), **record['fields']})
+                    request(name+'/'+quote(current['id'], safe=''), 'PATCH', merged)
+                else:
+                    comparable = {k: v for k, v in current.items() if k not in ('id', 'import_key')}
+                    expected = {k: v for k, v in record.items() if k != 'id'}
+                    if comparable != expected: raise ValueError(f'{name}/{import_key}: 既有事件不同，不覆寫')
+                result = current
+            else:
+                record.pop('id')
+                record['import_key'] = import_key
+                if name == 'cases': record['case_number'] = import_key
+                result = request(name, 'POST', record)
+            if name == 'cases': case_ids[import_key] = result['id']
+    request('config', 'PATCH', database['config'])
+
 def main(argv=None):
-    parser = argparse.ArgumentParser(description='合約 CSV／Markdown 與案件日誌轉 data.js')
+    parser = argparse.ArgumentParser(description='合約 CSV／Markdown 匯入本機 json-server')
     parser.add_argument('--register', help='合約 CSV；未指定且未給 --md-dir 時使用預設 register')
     parser.add_argument('--md-dir', help='合約 Markdown 資料夾，與 register 同時給時合併並檢查重複編號')
     parser.add_argument('--cases-dir', help='每案一檔的 Markdown＋JSONL 進度日誌')
     parser.add_argument('--fields', default=str(DEFAULT_FIELDS))
-    parser.add_argument('--out', default=str(HERE / 'app' / 'data' / 'data.js'))
+    parser.add_argument('--out', default=str(DEFAULT_OUT))
+    parser.add_argument('--api', help='執行中的本機 REST 位址；既有資料只經 API 更新')
     parser.add_argument('--logo'); parser.add_argument('--today')
     parser.add_argument('--settings', help='私人組織與核決 JSON；只加入 organization／approvalAuthority，不改公開 schema')
     args = parser.parse_args(argv)
@@ -238,11 +295,17 @@ def main(argv=None):
             settings = json.loads(Path(args.settings).read_text(encoding='utf-8'))
             for key in ('organization', 'approvalAuthority'):
                 if key in settings: payload['config'][key] = settings[key]
-        out = Path(args.out); out.parent.mkdir(parents=True, exist_ok=True)
-        raw = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c').replace('\u2028', '\\u2028').replace('\u2029', '\\u2029')
-        temporary = out.with_name(out.name + '.tmp')
-        temporary.write_text('/* Generated snapshot; source documents remain authoritative. */\nwindow.CONTRACT_DATA = ' + raw + ';\n', encoding='utf-8')
-        temporary.replace(out)
+        if args.api and not args.logo: payload['config'].pop('logo', None)
+        database = database_from_payload(payload)
+        if args.api:
+            import_api(database, args.api); out = args.api
+        else:
+            out = Path(args.out)
+            if out.exists(): raise ValueError('db.json 已存在；請啟動本機程式並改用 --api，禁止直接覆寫')
+            out.parent.mkdir(parents=True, exist_ok=True)
+            temporary = out.with_name(out.name + '.tmp')
+            temporary.write_text(json.dumps(database, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+            temporary.replace(out)
     except (OSError, ValueError) as exc:
         print(f'錯誤：{exc}', file=sys.stderr); return 1
     print(f'已產生 {out}：{len(payload["records"]["contracts"])} 筆合約、{len(payload["records"]["cases"])} 件案件')

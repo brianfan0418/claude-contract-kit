@@ -1,89 +1,69 @@
-# 共用檔案合約系統
+# 本機合約系統
 
-人與 Claude／Codex 讀寫同一套共用資料夾檔案。固定網頁直接以 file:// 開啟，不啟動伺服器、不連外部資料服務、不用 CDN 或外部字型。未連接資料夾時顯示唯讀 data.js 快照；按「連接資料夾」選取系統資料夾並授予讀寫權限後，可新增合約、建立案件、編輯欄位與保存進度。
+第一階段由一人在 Windows 電腦使用。瀏覽器開本機 HTTP，json-server 讀寫 data/db.json；人與 Codex／Claude 經同一個 REST 介面操作。原檔唯讀保留，Markdown 保存文字及來源。第二階段將網頁、資料庫與資料夾搬到內網正式伺服器，加入公司登入、案件權限、正式資料庫、備份與維運；本輪未實作第二階段。
 
-## 瀏覽器與權限
+## 安裝、啟動、停止
 
-Windows Edge／Chrome 支援 showDirectoryPicker；[MDN 相容資料](https://github.com/mdn/browser-compat-data/blob/main/api/Window.json) 記載 Chrome 86 起支援，Edge 繼承 Chromium。Firefox／Safari 未支援時保留唯讀模式。[MDN secure contexts](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Secure_Contexts) 將頂層 file:// 列為安全內容；[WICG 規格](https://wicg.github.io/file-system-access/) 仍要求非 opaque origin、同頂層 origin 與使用者點擊。
-
-本輪 Linux headless Chromium 確認 file:// 的 isSecureContext=true、API 存在；呼叫 picker 回 AbortError，未完成圖形選擇及共用路徑授權。**Windows Edge 實機未測**，尤其 UNC／網路磁碟存取與權限記住，正式使用前需實測。
-
-依 [Chrome 官方指南](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access)，directory handle 存入 IndexedDB；啟動時 queryPermission，已授權才載入。權限失效時按「重新授權資料夾」，在點擊事件中 requestPermission。IndexedDB 保存失敗不阻止當次連接，下次重新選資料夾。沒有把合約資料假寫入 localStorage。
-
-企業政策可能阻擋 API。IT 可檢查 [Edge read guard](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-policies/defaultfilesystemreadguardsetting) 與 [write guard](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-policies/defaultfilesystemwriteguardsetting)：3 為可詢問授權，2 為禁止。由公司決定是否允許，不使用停用瀏覽器安全性的旗標；無法授權時仍可讀快照並由 AI 更新來源。
-
-## 檔案格式
-
-| 路徑 | 用途 |
-|---|---|
-| 原檔/ | 原合約及各附件版本，唯讀保留 |
-| md/*.md | 合約主檔與文字；頂層 YAML frontmatter 使用 schema name |
-| cases/案號/index.md | 案件欄位，含 case_id；新案號自動生成 |
-| cases/案號/log/時間-處理人-UUID.md | 每次事件一個新檔；frontmatter 含 time、user、action、from_stage、to_stage、attachment_version，內文為處理意見 |
-| 收件匣/ | AI 登錄來信附件的輔助管道 |
-| 面板/ | 固定前端與 data/data.js 快照 |
-
-每筆進度只新增檔案，不覆寫舊紀錄；修正另加一筆。狀態由按時間排序的事件推導，保存退回與多輪協商。同時從相同舊狀態推進的事件會標示衝突，交由人／AI 核對。主檔更新先比對 getFile 的 lastModified 與原內容，開啟 writable 後再次比對；已改過時拒絕寫入並提示重新載入。
-
-此為樂觀衝突檢查，參考 [Microsoft EF Core optimistic concurrency](https://learn.microsoft.com/en-us/ef/core/saving/concurrency)。File System Access 沒有跨電腦的原子 compare-and-swap；檢查與寫入之間的競爭仍可能發生，不能宣稱具有資料庫交易保證。同一主檔同時多人修改仍應協調。事件檔使用時間＋UUID 分散寫入，參考 [事件資料追加模式](https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing)；本案不使用 Azure 服務。
-
-人與 AI 都使用相同格式。AI 以 Git 提交來源與快照，保存 author、時間與差異；處理人與 Git 寫入者分別記錄。網頁寫入後由 AI 核對差異再 commit，不在網頁假設已執行 Git。公司管理權限與備份；Git 不等於防竄改儲存。
-
-## 重建快照與驗證
-
-從 repo 根目錄執行，Python 3 標準函式庫；寫入模擬測試另需 Node：
+需要 Node.js **22.12.0 以上**（Codex 外掛亦使用 Node.js）及 Python 3。從 dashboard 資料夾執行一次：
 
 ```sh
-python3 dashboard/build_dashboard.py --register dashboard/sample_register.csv --out dashboard/app/data/data.js
-python3 dashboard/build_dashboard.py --md-dir /path/to/md --cases-dir /path/to/cases --out /path/to/面板/data/data.js --logo /path/to/logo.png
+npm install json-server@1.0.0-beta.15 lowdb@7.0.1 --save-exact
+```
+
+Windows 雙擊 start.bat；Linux 執行 ./start.sh。預設 3000 埠，可用 start.bat 3001／./start.sh 3001 改埠。腳本啟動 json-server 並開啟 http://127.0.0.1:3000/（localhost 同為本機）。保持程式視窗開啟；按 Ctrl+C 停止。安裝需要下載套件，安裝後操作資料不連外部服務；不使用 CDN 或外部字型。**Windows 啟動腳本實機未測**；Linux 啟動、REST 寫回及瀏覽器操作已實測。
+
+[官方 README](https://github.com/typicode/json-server) 的 v1 用法是 npx json-server data/db.json，預設提供 ./public，額外靜態目錄使用 -s app；不必 --watch。集合提供 GET、POST、PUT、PATCH、DELETE；單一 config 物件提供 GET、PUT、PATCH。[官方 service](https://github.com/typicode/json-server/blob/main/src/service.ts) 的寫入呼叫 db.write，更新會保存至 JSON。本案固定 beta.15，避免 beta 介面變更。
+
+實測 beta.15 [啟動原始碼](https://github.com/typicode/json-server/blob/main/src/bin.ts) 雖解析 --host，listen 呼叫未帶 host。因此 start.mjs 使用該版本的 createApp 與 lowdb JSONFile，以 Node HTTP server 明確 listen(port, '127.0.0.1')，其他電腦無法連入。程式啟動後只由 REST 寫入，不監看外部直接改檔。此程式依固定版本內部介面載入；升級套件須重跑測試及本機寫入驗證。
+
+## 資料與寫入
+
+| 位置／集合 | 內容 |
+|---|---|
+| 原檔/、md/ | 原始檔、轉出文字及出處；UI 不改原檔 |
+| data/db.json：contracts、cases | 合約欄位、案件欄位與目前狀態 |
+| progress | 每筆獨立紀錄：case_id、time、user、action、from_stage、to_stage、comment、attachment_version |
+| review_versions、review_comments | 不可變條款版本；追加留言、resolve、reopen 事件與文字錨點 |
+| config | 由 schema/fields.json 匯入的欄位、選項、流程，選擇性組織、核決、logo |
+| app/（私人交付為面板/） | 固定前端，啟動時 HTTP 載入資料；新增、更新後局部重新整理 |
+
+json-server beta.15 的 POST 自動生成字串 id；此內部 ID 與人使用的合約編號、case_number 案號分開。新合約留空編號時自動給 C-年份-流水號並記 contract_id_origin=system，新案件自動給 CASE-日期-隨機碼。欄位由 config.schema 檢查必填、日期、數值、整數、enum 及 pattern；更新可保留既有歷史 enum 原值，不能新填未知值。案件可不填所屬合約編號；處理人與意見必填。
+
+流程：收件 → 法務審閱 → 退回需求部門／與對方協商（可多輪）→ 核准 → 簽署 → 歸檔。每次推進追加 progress，再更新案件狀態。狀態非法拒絕寫入。json-server 不提供多次 REST 呼叫的資料庫交易；若中途失敗，介面報錯，AI 核對進度與主檔後修復，不直接改 db.json。單人使用，不提供多人鎖或登入。AI 停止程式後以 Git 保存版本、提交者及差異，並備份整個資料夾；Git 不代替備份。
+
+## AI 命令列工具
+
+AI 不直接修改 db.json。從 repo 根目錄執行（私人交付用 tools/contract_cli.py）：
+
+```sh
+python3 dashboard/tools/contract_cli.py list contracts
+python3 dashboard/tools/contract_cli.py create cases --input request.json
+python3 dashboard/tools/contract_cli.py update contracts C-2026-0001 --input request.json
+python3 dashboard/tools/contract_cli.py progress CASE-20261007-12345678 --input progress.json
+python3 dashboard/tools/contract_cli.py review-import CASE-20261007-12345678 --case-dir /path/to/cases/source
+```
+
+新增／更新 JSON：{"fields":{"title":"…","contract_type":"…"},"user":"處理人","comment":"意見","attachment_version":"V1"}；須填完整必填欄位。進度 JSON：{"stage":"法務審閱","user":"處理人","comment":"意見","attachment_version":"V1"}。--api 指定其他本機埠，--fields 可指定 schema；repo CLI 預設讀 schema/fields.json；獨立交付沒有 repo schema 時使用本機 config 的欄位，並套用私人部門選項。格式不合時回傳非零並列出錯誤，驗證完成前沒有 POST／PATCH。單人原型的 REST 未設登入，操作限本機。
+
+## 匯入與測試
+
+初次可由 CSV 或 Markdown 建立不存在的 db.json；既有資料只能 --api 匯入，不直接覆寫檔案。請先備份、核對來源再匯入；主檔依編號合併欄位，歷史 progress、審閱事件只加入，差異事件拒絕覆寫。
+
+```sh
+python3 dashboard/build_dashboard.py --register dashboard/sample_register.csv --out /new/path/data/db.json
+python3 dashboard/build_dashboard.py --md-dir /path/to/md --cases-dir /path/to/cases --settings /path/to/settings.json --api http://127.0.0.1:3000
 python3 -m unittest discover -s dashboard
 node dashboard/test_datasource.js
 ```
 
-CSV／Markdown 可擇一或合併；重複編號拒絕。--fields 預設 repo schema；--today 指定快照日期及自動編號年份；面板提醒使用瀏覽器當天本地日期，不使用快照日期。缺欄位留白；缺合約編號時產生 C-年份-流水號，避開既有編號並記 contract_id_origin: system。產生程式只寫快照，不覆寫 CSV 或原 Markdown；正式主檔由人／AI 保存系統編號。--logo 才內嵌 PNG／JPEG／GIF／WebP，公開範例不含公司 logo。生成失敗保留前次快照；成功置換 data.js，外框不重建。
+--logo 才內嵌 PNG／JPEG／GIF／WebP，公開範例沒有公司 logo。缺欄位留白，缺編號自動給號；不改原 CSV／Markdown。解析可攜頂層 YAML scalar、JSON inline、兩空格 literal／folded block；巢狀 YAML 用單行 JSON。cases 舊版 Markdown／JSONL 與每案資料夾日誌可作匯入來源，正式操作資料是本機程式管理的集合。--fields 預設 repo schema；--settings 只加入 organization／approvalAuthority。部門與處理人下拉、核准步驟來源提示保留。
 
-Frontmatter 支援頂層 scalar、JSON 引號字串、單行 JSON、兩空格的 literal／folded block；不是完整 YAML parser，巢狀 YAML 請用單行 JSON。舊版每案單一 Markdown＋JSONL 可重建快照，但連接資料夾編輯使用上表的新格式。
+## 介面與審閱
 
-## 介面與手機
+[Fluent 2](https://fluent2.microsoft.design/) 亮暗配色與 [System Icons](https://github.com/microsoft/fluentui-system-icons) SVG 內嵌，MIT 授權見 app/fluent-icons.LICENSE。明暗、100／125／150／200% 字級、欄位選擇、側欄與抽屜寬度保存 localStorage，讀寫包 try/catch。分隔可拖曳、方向鍵調寬、Home／End、Enter／雙擊還原，依 [WAI-ARIA Splitter](https://www.w3.org/WAI/ARIA/apg/patterns/windowsplitter/)。390px 手機版型保留；第一階段手機不能連入，第二階段內網主機與登入上線後才開放。
 
-Fluent 2 Body 1 14px／20px、Subtitle 2 16px／22px、官方亮暗 alias tokens。字級 100／125／150／200%；明暗、字級、側欄／抽屜寬度以 localStorage 記住，讀寫 try/catch。側欄 180～480px（預設 240）、抽屜 360～1100px（預設 620），另受視窗限制；拖曳、方向鍵、Home／End、Enter／雙擊還原。手機採可開關導覽。
+到期日依瀏覽器當天本地日期計算；不依狀態。已逾期、當天至 90 天、明載自動續約與通知期限、到期日未載明分別檢視。全空欄預設隱藏，可由「欄位」選擇器顯示。
 
-手機寬度支援 390px；手機存取共用資料需公司內網常開的 HTTPS 網頁主機，例如 NAS，為後續選項。一般內網 HTTP 不屬 secure context，不能假定資料夾寫入可用；桌面 file:// 是本次使用方式。
+審閱分頁按條號比對上一輪／本輪，以底線、刪除線只標必要增刪；留言串記處理人、時間、待處理／已解決，可只看未解決。selector 使用 TextQuoteSelector 的 exact／prefix／suffix，錨定不可變版本；新留言、回覆、解決與重開各追加事件。新版本由 AI 匯入，網頁不自動接受修訂。成熟依據：[GitHub PR](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/commenting-on-a-pull-request)、[Google 建議](https://support.google.com/docs/answer/6033474)、[W3C 錨點](https://www.w3.org/TR/annotation-model/#text-quote-selector)。
 
-唯一視覺依據 [Fluent 2](https://fluent2.microsoft.design/)，原生 HTML 實作而非官方 React 元件。[System Icons](https://github.com/microsoft/fluentui-system-icons) SVG 內嵌，MIT 授權在 app/fluent-icons.LICENSE。分隔語意依 [WAI-ARIA Window Splitter](https://www.w3.org/WAI/ARIA/apg/patterns/windowsplitter/)。流程參考 [Ironclad](https://developer.ironcladapp.com/reference/webhooks)、[DocuSign CLM](https://www.docusign.com/blog/how-does-docusign-clm-work)；人可讀日誌借用 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 概念，檔案格式由本案定義。
-
-偏好設定仍以 localStorage 保存；file:// 的儲存行為由瀏覽器決定，另以 history.state 作同一分頁重新整理的備援，兩者均捕捉存取錯誤。跨瀏覽器、關閉分頁後的保留需在 Windows Edge 實測。依據：[MDN localStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage)。
-
-## 按條號線上審閱
-
-案件明細新增「審閱」分頁：上一輪／本輪條款依 id 對應，以最長共同子序列只標必要增刪（刪除線／底線，使用中性色）。長於一百萬個比較格的條款改用共同前綴／後綴，以限制瀏覽器記憶體。留言串顯示處理人、時間、待處理／已解決；可只看未解決，連接資料夾後可留言、回覆、解決及重新開啟。瀏覽器不直接改合約文字，條款新版本由 AI 匯入或建立；沒有自動接受建議。
-
-| 檔案 | 格式 |
-|---|---|
-| cases/案號/review/versions/V1.md | version_id；clauses 單行 JSON 陣列，每條含唯一 id、title、text；只新增，舊版本不改 |
-| cases/案號/review/comments/時間-UUID.md | id、thread_id、version_id、clause_id、user、含時區 time、action、selector；內文為留言 |
-
-留言 action 為 comment／resolve／reopen。首筆 thread_id=id；後續同串維持版本、條號及 selector。selector 含 type=TextQuoteSelector、exact、prefix、suffix，錨定不可變版本的原文。新增留言前比對最新版本，變動時拒寫；每個事件只新增新檔。多人的解決／重新開啟以時間順序重播；這仍不是跨電腦交易鎖。非法錨點或缺少串首筆拒收，快照生成失敗保留原快照。
-
-AI 與人同用這套格式；AI（Codex、Claude 皆可）轉檔、抽欄位、審閱、比對，預設交 Codex 執行以控制費用，驗收由另一個對話執行。
-
-Word 修訂稿匯入需本機 Pandoc（不連外）：
-
-```sh
-python3 dashboard/import_review.py /path/to/revised.docx --case-dir /path/to/cases/CASE-001 --previous V1 --current V2
-python3 dashboard/build_dashboard.py --md-dir /path/to/md --cases-dir /path/to/cases --out /path/to/面板/data/data.js --settings /path/to/設定/組織與核決.json
-```
-
-匯入器實際執行 pandoc --track-changes=all -t json，分成修訂前／後文字與 Word 註解，保留修訂作者與時間；不覆寫既有版本。支援段落、條號標題、清單與表格內段落；複雜圖形、未知 inline 或跨條號註解無法保證錨定，拒收並核對原稿。匯入不是 Word 排版重現，須以另一個對話對照原文驗收。原始 DOCX 保留唯讀。
-
---settings 可加入私人 organization（units: id／name／path；people: name／unit）與 approvalAuthority（rules: department／text／source；caveat）。表單部門與處理人使用下拉選單；核准步驟附來源提示。設定只在提供參數時納入快照，公開 repo 不含真實組織或核決資料；不得將歷史公告當作目前有效授權。
-
-成熟依據：[GitHub PR 審閱](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/commenting-on-a-pull-request)、[Google 建議](https://support.google.com/docs/answer/6033474)、[W3C TextQuoteSelector](https://www.w3.org/TR/annotation-model/#text-quote-selector)、[Pandoc track-changes](https://pandoc.org/MANUAL.html#option--track-changes)、[WAI-ARIA 分頁](https://www.w3.org/WAI/ARIA/apg/patterns/tabs/)。本格式借用錨點概念，不宣稱完整 JSON-LD 標準相容。Windows Edge 實機仍未測。
-
-## 日期檢視與欄位
-
-到期日有效時，早於瀏覽器當天日期計入「已逾期」；當天至 90 天（含）計入「90 天內到期」，均不依狀態欄位。自動續約還須明載續約方式及非負整數通知天數：尚未逾期且通知截止日距今天不超過 90 天者計入，包含已過通知日。未提供或無效的到期日不計入提醒，可選「到期日未載明」；到期日不代表已確認終止或未續約。面板每分鐘及重新返回分頁時重算，跨日不需重建快照。
-
-表格常用欄位若整欄空白，預設隱藏；「欄位」對話框可顯示 schema 的任一欄位，包含空白欄，選擇後按「套用」。取消不改動表格；恢復預設清除自訂設定並重新依資料判斷。合約與案件分別保存欄位偏好，localStorage 存取包 try/catch；瀏覽器禁止保存時仍可當次使用。名稱缺值顯示「未載明」，不由相對人或標的推測。
-
-元件依據：[Fluent 2 Checkbox](https://fluent2.microsoft.design/components/web/react/core/checkbox/usage)、[Fluent 2 Dialog](https://fluent2.microsoft.design/components/web/react/core/dialog/usage)。
+Word 修訂稿由 import_review.py 使用本機 Pandoc --track-changes=all -t json，產生唯讀匯入來源版本與註解，再經 CLI review-import 寫入本機介面。複雜 inline／跨條號註解拒收，對照原稿驗收。依據：[Pandoc](https://pandoc.org/MANUAL.html#option--track-changes)。

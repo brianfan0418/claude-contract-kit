@@ -1,0 +1,14 @@
+{
+  "name": "contract-kit-local",
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "start": "node start.mjs"
+  },
+  "dependencies": {
+    "json-server": "1.0.0-beta.15",
+    "lowdb": "7.0.1"
+  }
+}
