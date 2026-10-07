@@ -4,7 +4,7 @@
 
 ## 實作
 
-- start.bat／start.sh 呼叫 start.mjs，固定 json-server 0.17.4；套件官方 Node.js 最低要求 >=12，三個啟動入口均檢查最低版本。使用官方公開 create／defaults／router，明確綁 127.0.0.1；lowdb 使用套件內建版本，不另外釘選。
+- node start.mjs 或 start.sh 啟動，固定 json-server 0.17.4；套件官方 Node.js 最低要求 >=12，Node 與 shell 啟動入口均檢查最低版本。使用官方公開 create／defaults／router，明確綁 127.0.0.1；lowdb 使用套件內建版本，不另外釘選。
 - HTTP 資料源啟動時讀 config、contracts、cases；新增、更新、進度、審閱留言都經 REST。UI 與 AI CLI 檢查 schema 必填及格式，正式版只將偏好存 localStorage；展示版經瀏覽器資料層保存合約、案件、進度與留言。
 - build_dashboard.py 初次可建立不存在的 db.json；已存在時拒絕直接覆寫，須 --api 匯入。進度／留言只追加，版本不可變；import_key 對應原匯入編號，POST 明確指定字串 UUID，0.17 保留指定 id；CLI 相容數字舊 ID。
 - AI 工具在 dashboard/tools/contract_cli.py，原檔與 Markdown 保留資料夾。公開 db.json 僅 13 筆虛構去識別合約，無公司 logo、組織、核決或年報內容。
@@ -21,7 +21,7 @@ Linux 實際啟動 json-server，ss 確認 127.0.0.1:3099。headless Chromium �
 
 ## 後續與限制
 
-Windows start.bat、瀏覽器啟動與 Edge 實機未測；如需正式使用，建議由您的 AI 依 README 協助設定並驗證。json-server 原型沒有登入、案件權限或多請求交易，不能直接公開成多人正式服務。第二階段須 IT 提供常開主機、Node.js、對內網址、公司登入、資料庫與備份，移轉 db.json 及文件資料夾後做權限、件數及還原驗證。
+Windows 瀏覽器啟動與 Edge 實機未測；如需正式使用，建議由您的 AI 依 README 協助設定並驗證。json-server 原型沒有登入、案件權限或多請求交易，不能直接公開成多人正式服務。第二階段須 IT 提供常開主機、Node.js、對內網址、公司登入、資料庫與備份，移轉 db.json 及文件資料夾後做權限、件數及還原驗證。
 
 法規規則與手冊依根目錄 [交接](../docs/HANDOFF.md)；Windows／Cowork 法規取得能力及法條逐條施行核對仍未驗證。年報摘錄不等於合約全文，歷史核決公告不等於目前有效授權。
 
@@ -45,3 +45,9 @@ Word 原生審閱、預設系統版本紀錄與驗證集中於 [根目錄交接]
 ## B16 接續
 
 案件全頁、三分頁、窄螢幕下拉、返回列表狀態與可搬移文件站 sitemap 的實作及驗證集中於 [根目錄交接](../docs/HANDOFF.md#b16案件全頁與說明即時導覽)。新增三個實際本機服務整合測試需先於 dashboard 執行 npm ci；一般 discovery 與 Node 指令維持不變。
+
+## B18：頁面、檢視與篩選分層
+
+側欄主頁帶 Fluent System Icons，預設檢視縮排；篩選改為列表上方可收合面板。案件仍為全頁、合約仍為抽屜，返回案件列表保留篩選。Word 分頁新增三步驟流程及 ONLYOFFICE 官方審閱畫面連結，條文編輯仍在 Word，現有匯入、下載及逐條總覽保留。舊 Windows 批次啟動檔已移除，AI 可依 README 使用 node start.mjs。
+
+根目錄 96／dashboard 61 個 unittest、Node 28 checks 全過；私人完整交付包的瀏覽器導覽、新增保存、REST 與 CLI 寫回均通過。Windows 實機限制維持。

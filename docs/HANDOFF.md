@@ -1,6 +1,6 @@
 # 交接
 
-最後更新：2026-10-07 B16（台灣時間）
+最後更新：2026-10-07 B18（台灣時間）
 
 ## 現況
 
@@ -45,7 +45,7 @@ node dashboard/test_datasource.js             19 checks，0 failed
 
 ## 接續與限制
 
-第一個可執行動作：在副總 Windows 電腦依 dashboard/README.md 安裝 Node.js 與套件，以 start.bat 啟動並驗證網頁及 CLI 寫回；依 tw-law 取得方式保存法規，選定所引條號並核對施行註記；法務另填公司手冊的立場與接受範圍，再審實際簽署版。
+如需實際使用，建議由您的 AI 依 dashboard/README.md 協助設定，以 node start.mjs 啟動並驗證網頁及 CLI 寫回；法規依 tw-law 取得方式保存版本，引用前核對施行註記。公司審閱立場與接受範圍仍待法務確認。
 
 - 單一法規的正式 API 查詢端點查不到；官方 API 是批次 ZIP，本工具按代碼的條文抓取使用 HTML 解析，版型改動時可能拒收。
 - Windows、Cowork 執行程式未實測；XML ZIP 未下載驗證。法規個案適用及未生效修法的逐條版本仍須法務確認。
@@ -92,3 +92,9 @@ node dashboard/test_datasource.js             19 checks，0 failed
 本機程式的 /docs/sitemap.xml 依實際網址及埠輸出，支援 Material navigation.instant；選擇性設定的代理網址僅供 sitemap，公開版 API 仍拒絕非本機 Origin。私人文件站維持 file:// 完整換頁，於 head 提早套用字級與背景、body 早期暗色樣式、靜態字級控制、捲軸保留空間與本機離線搜尋 shim。私人提案搬至獨立 admin-ai，未提交私人檔案至本 repo。
 
 驗證：根目錄 discovery 96 tests、dashboard 61 tests、Node 28 checks 全過，新增 3 個實際啟動 json-server 測試 docs／API、可搬移 sitemap、非本機寫入拒收。Playwright 檢查案件 1920 亮色、390 暗色與 200%，三分頁鍵盤、返回搜尋／部門／排序／捲動，以及 file:// 示範進度保存後重新整理保留。HTTP／file 各 16 幀以 50ms 排程連拍；HTTP 無 document 重載，離線背景及字級維持。私人證據與截圖見其交接，不提交公司資料；Windows Word／Edge 實機未測。
+
+## B18：導覽層級與 Word 操作流程
+
+面板主要頁面改為帶 Fluent 圖示的「合約庫／案件」，目前頁面的預設檢視縮排呈現；篩選移至列表上方的可收合面板，案件全頁隱藏列表篩選，返回後保留條件。Word 審閱分頁顯示「下載在 Word 修改／註解 → 匯入修訂稿 → 核對逐條總覽與 AI 建議」三步驟，並連結 ONLYOFFICE 官方審閱畫面供第二階段評估。移除舊 Windows 批次啟動檔，保留 node start.mjs 供 AI 設定。
+
+驗證：根目錄 unittest 96、dashboard unittest 61、Node 28 checks 全過。完整私人交付包的 file:// 展示版 31 合約／4 案件、三分頁、新增後重新整理保存及新導覽層級通過；REST 首頁、docs、API 200，CLI 新增、單欄更新、進度落盤與不合格拒收通過，測後逐位元還原。公司資料與截圖保存在私人專案，不進本 repo。Windows Word／Edge 實機未測。
