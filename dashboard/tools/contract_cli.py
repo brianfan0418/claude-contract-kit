@@ -15,9 +15,10 @@ DEFAULT_SCHEMA = Path(__file__).resolve().parents[2] / 'schema' / 'fields.json'
 
 
 def validate_fields(fields, schema, is_case=False, previous=None):
-    previous = previous or {}
     result = dict(fields)
     for f in schema['fields']:
+        if previous is not None and (f['name'] not in fields or fields[f['name']] == previous.get(f['name'], '')):
+            continue
         raw = fields.get(f['name'], '')
         if isinstance(raw, (dict, list, bool)) or (raw is not None and f['type'] not in ('number', 'integer') and not isinstance(raw, str)):
             raise ValueError(f"{f['label']}須為文字或數值，結構資料請提供 JSON 字串")
@@ -39,7 +40,7 @@ def validate_fields(fields, schema, is_case=False, previous=None):
             raise ValueError(f"{f['label']}格式不符") from None
         if f['type'] == 'enum':
             values = [v if isinstance(v, str) else v['label'] for v in schema.get('enums', {}).get(f.get('enum', f['name']), [])]
-            if value not in values and value != str(previous.get(f['name'], '')):
+            if value not in values:
                 raise ValueError(f"{f['label']}不在選項內")
         if f.get('pattern') and not re.fullmatch(f['pattern'], value):
             raise ValueError(f"{f['label']}格式不符")
@@ -118,9 +119,9 @@ class Client:
         self.actor(body)
         if not isinstance(body.get('fields'), dict): raise ValueError('fields 須為欄位物件')
         config = self.config(); current = self.read(kind, key)
-        fields = {**current['fields'], **body['fields'], 'updated_at':dt.date.today().isoformat()}
-        if kind == 'contracts': fields['contract_id'] = current['fields']['contract_id']
-        fields = validate_fields(fields, config['schema'], kind == 'cases', current['fields'])
+        changes = {**body['fields'], 'updated_at':dt.date.today().isoformat()}
+        if kind == 'contracts': changes.pop('contract_id', None)
+        fields = {**current['fields'], **validate_fields(changes, config['schema'], kind == 'cases', current['fields'])}
         result = self.request(kind+'/'+urllib.parse.quote(current['id']), 'PATCH', {'fields':fields, 'updated_by':body['user']})
         if kind == 'cases': self.log(current['id'], body, current['stage'], current['stage'], '更新欄位')
         return result

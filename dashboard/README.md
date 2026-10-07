@@ -27,7 +27,7 @@ Windows 雙擊 start.bat；Linux 執行 ./start.sh。預設 3000 埠，可用 st
 | config | 由 schema/fields.json 匯入的欄位、選項、流程，選擇性組織、核決、logo |
 | app/（私人交付為面板/） | 固定前端，啟動時 HTTP 載入資料；新增、更新後局部重新整理 |
 
-json-server beta.15 的 POST 自動生成字串 id；此內部 ID 與人使用的合約編號、case_number 案號分開。新合約留空編號時自動給 C-年份-流水號並記 contract_id_origin=system，新案件自動給 CASE-日期-隨機碼。欄位由 config.schema 檢查必填、日期、數值、整數、enum 及 pattern；更新可保留既有歷史 enum 原值，不能新填未知值。案件可不填所屬合約編號；處理人與意見必填。
+json-server beta.15 的 POST 自動生成字串 id；此內部 ID 與人使用的合約編號、case_number 案號分開。新合約留空編號時自動給 C-年份-流水號並記 contract_id_origin=system，新案件自動給 CASE-日期-隨機碼。新增時由 config.schema 檢查全部必填、日期、數值、整數、enum 及 pattern；更新只驗證本次變更欄位，保留既有空值與歷史原值。空值在畫面標「未載明」；變更欄位仍須符合必填與格式，不能新填未知 enum 或清空已有值的必填欄位。案件可不填所屬合約編號；處理人與意見必填。
 
 流程：收件 → 法務審閱 → 退回需求部門／與對方協商（可多輪）→ 核准 → 簽署 → 歸檔。每次推進追加 progress，再更新案件狀態。狀態非法拒絕寫入。json-server 不提供多次 REST 呼叫的資料庫交易；若中途失敗，介面報錯，AI 核對進度與主檔後修復，不直接改 db.json。單人使用，不提供多人鎖或登入。AI 停止程式後以 Git 保存版本、提交者及差異，並備份整個資料夾；Git 不代替備份。
 
@@ -43,7 +43,7 @@ python3 dashboard/tools/contract_cli.py progress CASE-20261007-12345678 --input 
 python3 dashboard/tools/contract_cli.py review-import CASE-20261007-12345678 --case-dir /path/to/cases/source
 ```
 
-新增／更新 JSON：{"fields":{"title":"…","contract_type":"…"},"user":"處理人","comment":"意見","attachment_version":"V1"}；須填完整必填欄位。進度 JSON：{"stage":"法務審閱","user":"處理人","comment":"意見","attachment_version":"V1"}。--api 指定其他本機埠，--fields 可指定 schema；repo CLI 預設讀 schema/fields.json；獨立交付沒有 repo schema 時使用本機 config 的欄位，並套用私人部門選項。格式不合時回傳非零並列出錯誤，驗證完成前沒有 POST／PATCH。單人原型的 REST 未設登入，操作限本機。
+新增／更新 JSON：{"fields":{"title":"…","contract_type":"…"},"user":"處理人","comment":"意見","attachment_version":"V1"}；新增須填完整必填欄位，更新 fields 只需提供變更欄位。進度 JSON：{"stage":"法務審閱","user":"處理人","comment":"意見","attachment_version":"V1"}。--api 指定其他本機埠，--fields 可指定 schema；repo CLI 預設讀 schema/fields.json；獨立交付沒有 repo schema 時使用本機 config 的欄位，並套用私人部門選項。格式不合時回傳非零並列出錯誤，驗證完成前沒有 POST／PATCH。單人原型的 REST 未設登入，操作限本機。
 
 ## 匯入與測試
 

@@ -21,6 +21,31 @@ await test('Invalid transition and missing actor do not write',async()=>{for(con
 await test('Editing keeps system contract number and source references',async()=>{db.contracts[0].fields.source_refs='page 1';const r=await source.update('contracts',contract.id,{...body(),fields:{...contract.fields,title:'更新',contract_id:'other'}});assert.equal(r.fields.contract_id,contract.fields.contract_id);assert.equal(r.fields.source_refs,'page 1')});
 await test('Case edit appends same-state history',async()=>{const r=await source.update('cases',record.id,{...body(),fields:{...record.fields,title:'更新案件'}});assert.equal(r.progress.at(-1).action,'更新欄位');assert.equal(r.progress.at(-1).to_stage,'法務審閱')});
 await test('Historical enum can be kept but new unknown enum rejected',async()=>{db.contracts[0].fields.status='舊資料';await source.update('contracts',contract.id,{...body(),fields:{...db.contracts[0].fields,title:'保留舊值'}});await assert.rejects(source.update('contracts',contract.id,{...body(),fields:{...db.contracts[0].fields,status:'另一個未知'}}),/選項/)});
+await test('Partial updates retain missing mandatory and malformed legacy fields',async()=>{
+ for(const kind of ['contracts','cases']){
+  const legacy={id:'legacy-'+kind,stage:'收件',fields:{contract_id:'LEGACY-01',title:'',status:'',date:'原文未載明',amount:'未知',notes:'',source_refs:'page 1'}};
+  db[kind].push(legacy);const old=structuredClone(legacy.fields);
+  const updated=await source.update(kind,legacy.id,{user:'甲',comment:'補充',fields:{notes:'只改備註'}});
+  assert.equal(updated.fields.notes,'只改備註');
+  for(const [name,value] of Object.entries(old))if(name!=='notes')assert.equal(updated.fields[name],value);
+  if(kind==='cases')assert.equal(updated.progress.at(-1).action,'更新欄位');
+ }
+});
+await test('Changed fields still require valid values and cannot clear a known mandatory value',async()=>{
+ const legacy=db.contracts.find(r=>r.id==='legacy-contracts');legacy.fields.title='既有名稱';
+ for(const fields of [{title:''},{date:'2026-02-30'},{days:'1.5'},{amount:'Infinity'},{status:'新未知值'},{title:[]}]){
+  const n=writes.length;await assert.rejects(source.update('contracts',legacy.id,{user:'甲',comment:'x',fields}));assert.equal(writes.length,n);
+ }
+});
+await test('Editor sends only fields changed from its displayed initial values',()=>{
+ const initial={contract_id:'LEGACY-01',title:'',status:'',date:'',amount:'0',updated_at:'2026-10-07'};
+ assert.deepEqual(ContractHttp.changedFields({...initial,title:'補充名稱',_comment:'x'},initial,schema),{title:'補充名稱'});
+ assert.deepEqual(ContractHttp.changedFields({...initial,amount:'1'},initial,schema),{amount:'1'});
+ assert.equal(ContractHttp.requiredOnCreate(schema.fields.find(f=>f.name==='title')),true);
+ assert.equal(ContractHttp.requiredOnCreate(schema.fields.find(f=>f.name==='contract_id')),false);
+ for(const value of ['',null,undefined,'  '])assert.equal(ContractHttp.displayValue(value),'未載明');
+ assert.equal(ContractHttp.displayValue(0),'0');
+});
 db.review_versions.push({id:'rv',case_id:record.id,version_id:'V1',clauses:[{id:'第1條',text:'付款期限三十日'}]});
 let review;
 await test('Review comment uses server-generated ID and stable thread key',async()=>{review=await source.appendReview(record.id,{user:'甲',comment:'請確認',expectedVersion:'V1',version_id:'V1',clause_id:'第1條',selector:{type:'TextQuoteSelector',exact:'三十日',prefix:'付款期限',suffix:''}});assert.equal(review.comments.length,1);assert.notEqual(review.comments[0].id,review.comments[0].thread_id)});

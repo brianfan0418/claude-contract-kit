@@ -80,8 +80,34 @@ class CliTest(unittest.TestCase):
             self.assertEqual(request.call_args.args[2]['fields']['status'],'歷史原值')
 
     def test_only_loopback_http(self):
-        for url in ['https://127.0.0.1:3000','http://example.com','http://192.168.1.2:3000']:
+        for url in ['https://127.0.0.1:3000','http://example.com','http://203.0.113.1:3000']:
             with self.assertRaises(ValueError):cli.Client(url)
+
+    def test_partial_update_preserves_missing_required_and_legacy_values(self):
+        for kind in ('contracts', 'cases'):
+            c = self.client()
+            old = {'contract_id': 'LEGACY-01', 'title': '', 'department': '',
+                   'status': '歷史原值', 'end_date': '原文未載明', 'notes': '', 'source_refs': 'page 1'}
+            current = {'id': 'legacy', 'stage': '收件', 'fields': old}
+            c.read = lambda *a: current
+            with patch.object(c, 'request', return_value={'id': 'legacy'}) as request:
+                c.update(kind, 'legacy', {'fields': {'notes': '新增備註'}, 'user': '甲', 'comment': '核對'})
+                saved = request.call_args_list[0].args[2]['fields']
+                self.assertEqual(saved['notes'], '新增備註')
+                for name, value in old.items():
+                    if name != 'notes': self.assertEqual(saved[name], value)
+                self.assertNotIn('our_entity', saved)
+                self.assertEqual(request.call_count, 2 if kind == 'cases' else 1)
+
+    def test_partial_update_validates_changes_before_any_write(self):
+        c = self.client()
+        old = {'contract_id': 'LEGACY-01', 'title': '原名稱', 'department': '', 'status': ''}
+        c.read = lambda *a: {'id': 'legacy', 'fields': old}
+        for change in ({'title': ''}, {'end_date': '2026-02-30'}, {'status': '新未知值'}, {'notice_days': '1.5'}, {'notes': []}):
+            with patch.object(c, 'request') as request:
+                with self.assertRaises(ValueError):
+                    c.update('contracts', 'legacy', {'fields': change, 'user': '甲', 'comment': '核對'})
+                request.assert_not_called()
 
     def test_cli_invalid_input_returns_nonzero(self):
         with tempfile.TemporaryDirectory() as d:

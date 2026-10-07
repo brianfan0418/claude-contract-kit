@@ -1,10 +1,10 @@
 # 交接
 
-最後更新：2026-10-07 09:26（台灣時間）
+最後更新：2026-10-07 09:51（台灣時間）
 
 ## 現況
 
-獨立合約資源 repo 已有台灣製藥／生技／化妝品分類、台灣法與涉外合約手冊。已具備台灣法規技能、下載工具及本機合約系統。本輪依使用者 B9 決定改為副總電腦單人本機 HTTP、json-server REST 與 AI CLI，建立本機 commit，由使用者 push；私人組織、logo、年報契約與介面截圖不進公開 repo。
+獨立合約資源 repo 已有台灣製藥／生技／化妝品分類、台灣法與涉外合約手冊。已具備台灣法規技能、下載工具及本機合約系統。依使用者 B9 決定採副總電腦單人本機 HTTP、json-server REST 與 AI CLI；B11 修正既有缺值資料的單欄更新，建立本機 commit，由使用者 push；私人組織、logo、年報契約與介面截圖不進公開 repo。
 
 ## 完成項目與決定
 
@@ -19,6 +19,17 @@
 - 私人年報主檔以清冊列次給系統編號，註明 system；顯示名稱照錄契約性質，另附頁碼及原文引句。其餘未揭露欄位留白，授信額度不當作合約總額，非已驗證的正式主檔。
 
 ## 已完成驗證
+
+2026-10-07 B11：新增時維持全部必填與格式檢查；更新只驗證變更欄位，保留既有空值、歷史 enum 與未變更原文值。表單依顯示初值產生變更欄位，不要求補齊舊資料；空值顯示「未載明」。非本機拒收測試使用 RFC 5737 文件位址。
+
+```text
+python3 -m unittest discover -s .             81 tests，OK
+python3 -m unittest discover -s dashboard     46 tests，OK
+node dashboard/test_datasource.js             22 checks，0 failed
+```
+
+根目錄包含 dashboard 的 46 個測試，不重複加總。Linux 使用與私人交付相同 package-lock 實際 npm ci，安裝 43 個套件；本機首頁與合約 API 均 HTTP 200。CLI 合格新增與僅變更備註的既有資料更新確認寫回磁碟；不合格新增 exit 1，未寫入。Chromium 實際編輯缺必填值的年報主檔成功，其餘空值保留。停止程式後逐位元還原範例 db.json，驗證紀錄保存於私人交付 validation-b11.json。公開去識別掃描排除 .git，驗收指定規則零命中；Windows 實機未測。
+
 
 2026-10-07 B9，於 repo 根目錄執行原指令；沒有設定 PYTHONPATH：
 

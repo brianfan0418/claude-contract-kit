@@ -12,6 +12,9 @@
 
 ## 驗證
 
+2026-10-07 B11：CLI、HTTP 資料源與表單更新只驗證變更欄位，既有缺值及未變更原文值保留；新增仍檢查全部必填，清空已知必填或新增不合法值拒收。欄位未載明以「未載明」呈現。根目錄 discovery 81 tests、dashboard 46 tests、Node 22 checks 全過。Linux 實際 npm ci、首頁／API HTTP 200、CLI 合格新增與單欄更新、瀏覽器單欄更新均確認寫回；無效新增未寫入。停止程式後按備份逐位元還原私人範例。B9 以下驗證為歷史紀錄。
+
+
 根目錄原指令、不設 PYTHONPATH：python3 -m unittest discover -s . 共 79 tests，OK；dashboard discovery 共 44 tests，OK；node dashboard/test_datasource.js 共 19 checks，0 failed。Node 檢查含模擬 HTTP、server ID、格式拒收、進度、審閱錨點與日期／欄位偏好；不等同 Windows 實測。
 
 Linux 實際啟動 json-server，ss 確認 127.0.0.1:3099。headless Chromium 網頁新增案件、推進法務審閱、留言及標記已解決後，從磁碟 db.json 確認寫回；CLI 新增、更新、推進及格式拒收亦實測。測後停止程式、按原備份逐位元還原範例資料。19 張 1920 亮暗／100%／200%、390 亮暗及審閱圖已逐張查看；色票最低文字對比 5.18:1、鍵盤分隔、表格與欄位視窗通過。圖像證據在私人 ui-validation-b9.json／scratchpad/ui3/b9。
