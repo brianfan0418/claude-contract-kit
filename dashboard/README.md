@@ -10,7 +10,7 @@
 python3 dashboard/build_demo.py --db dashboard/data/db.json --out /path/to/展示版
 ```
 
-如需設定正式本機系統，可由您的 AI 確認 Node.js 12 以上後於 dashboard 執行 npm ci，再以 node start.mjs 啟動；預設 3000 埠，停止為 Ctrl+C。CLI／匯入另需 Python 3，Word 修訂匯入另需 Pandoc。平台啟動腳本保留供 AI 參考。Windows 實機未測；Linux HTTP 與寫回已實測。網頁不使用 CDN 或外部字型。
+如需設定正式本機系統，可由您的 AI 確認 Node.js 12 以上後於 dashboard 執行 npm ci，再以 node start.mjs 啟動；預設 3000 埠，停止為 Ctrl+C。CLI／匯入另需 Python 3，原生 Word 工具相依見 requirements-word.txt，舊版 Pandoc 匯入工具另需 Pandoc。平台啟動腳本保留供 AI 參考。Windows 實機未測；Linux HTTP 與寫回已實測。網頁不使用 CDN 或外部字型。
 
 [官方 v0 README](https://github.com/typicode/json-server/tree/v0) 說明 0.17 用法：`npx json-server --watch data/db.json --host 127.0.0.1 --port 3000 --static app`。`--watch` 監看檔案，`--static` 指定靜態目錄，`--host` 指定監聽位址。集合提供 GET／POST／PUT／PATCH／DELETE，config 單一物件亦有讀寫路由；寫入帶 application/json，REST 變更由內建 lowdb 保存至 JSON。[npm registry 套件資料](https://registry.npmjs.org/json-server/0.17.4) 的 engines.node 為 >=12；2026-10-07 執行 npm view json-server@0.17 engines version 確認最新 0.17 為 0.17.4。
 
@@ -31,7 +31,7 @@ start.mjs 使用官方公開的 create／defaults／router，明確 listen(port,
 
 新增由網頁、CLI 與匯入工具明確指定字串 UUID id；0.17 POST 保留指定 id，也可能為未給號的外部輸入產生數字 id，CLI 相容數字舊 ID。此內部 ID 與人使用的合約編號、case_number 案號分開。新合約留空編號時自動給 C-年份-流水號並記 contract_id_origin=system，新案件自動給 CASE-日期-隨機碼。新增時由 config.schema 檢查全部必填、日期、數值、整數、enum 及 pattern；更新只驗證本次變更欄位，保留既有空值與歷史原值。空值在畫面標「未載明」；變更欄位仍須符合必填與格式，不能新填未知 enum 或清空已有值的必填欄位。案件可不填所屬合約編號；處理人與意見必填。
 
-流程：收件 → 法務審閱 → 退回需求部門／與對方協商（可多輪）→ 核准 → 簽署 → 歸檔。每次推進追加 progress，再更新案件狀態。狀態非法拒絕寫入。json-server 不提供多次 REST 呼叫的資料庫交易；若中途失敗，介面報錯，AI 核對進度與主檔後修復，不直接改 db.json。單人使用，不提供多人鎖或登入。系統本身保留版本與處理紀錄；若您的 AI 需要追蹤自己修改的檔案，可選用 Git。正式使用建議停止程式後備份完整資料夾；Git 不代替備份。
+流程：收件 → 法務審閱 → 退回需求部門／與對方協商（可多輪）→ 核准 → 簽署 → 歸檔。每次推進追加 progress，再更新案件狀態。狀態非法拒絕寫入。json-server 不提供多次 REST 呼叫的資料庫交易；若中途失敗，介面報錯，AI 核對進度與主檔後修復，不直接改 db.json。單人使用，不提供多人鎖或登入。系統本身保留版本與處理紀錄。正式使用建議停止程式後備份完整資料夾。
 
 ## AI 命令列工具
 
@@ -66,9 +66,18 @@ node dashboard/test_datasource.js
 
 到期日依瀏覽器當天本地日期計算；不依狀態。已逾期、當天至 90 天、明載自動續約與通知期限、到期日未載明分別檢視。全空欄預設隱藏，可由「欄位」選擇器顯示。
 
-審閱分頁按條號比對上一輪／本輪，以底線、刪除線只標必要增刪；留言串記處理人、時間、待處理／已解決，可只看未解決。selector 使用 TextQuoteSelector 的 exact／prefix／suffix，錨定不可變版本；新留言、回覆、解決與重開各追加事件。新版本由 AI 匯入，網頁不自動接受修訂。成熟依據：[GitHub PR](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/commenting-on-a-pull-request)、[Google 建議](https://support.google.com/docs/answer/6033474)、[W3C 錨點](https://www.w3.org/TR/annotation-model/#text-quote-selector)。
+第一階段建議維持 Word 編輯；案件「Word 審閱」分頁讀取帶修訂與註解的 DOCX，以條號列出作者、文字、內容及待處理／已解決狀態，可篩選未解決、選擇版本及下載。接受／拒絕修訂、解決註解仍在 Word 進行；匯入新版本後更新總覽。既有逐條比對工具保留供 AI 使用。
 
-Word 修訂稿由 import_review.py 使用本機 Pandoc --track-changes=all -t json，產生唯讀匯入來源版本與註解，再經 CLI review-import 寫入本機介面。複雜 inline／跨條號註解拒收，對照原稿驗收。依據：[Pandoc](https://pandoc.org/MANUAL.html#option--track-changes)。
+AI 建議可經 tools/word_review.py 寫成 Word 原生註解或修訂，另存新版本；面板也可匯入同一 JSON 建議檔。正式版匯入經 REST 保存不可變 review_versions，展示版使用瀏覽器資料層，不覆寫原檔。native DOCX 以 base64 保存於版本集合，下載還原相同封裝。
+
+```sh
+python3 -m pip install -r dashboard/requirements-word.txt
+python3 dashboard/tools/word_review.py inspect dashboard/sample_word_review.docx
+python3 dashboard/tools/word_review.py suggest dashboard/sample_word_review.docx --suggestions dashboard/sample_word_suggestions.json --out /new/path/suggested.docx
+python3 dashboard/tools/word_review.py import /new/path/suggested.docx --case CASE-ID --user "AI（Codex／Claude）"
+```
+
+python-docx 1.2.0 建立原生註解測試檔，lxml 處理 w:ins／w:del／w:comment 與 w15:commentEx；瀏覽器使用內嵌 MIT fflate 與 XML DOM，同一資料格式。其他 OOXML 封裝項目不重建；10 MB 壓縮／50 MB 解壓限制。AI 建議只支援唯一、單一文字 run 的錨點；跨格式、移動／格式修訂與複雜註解須由 Word 處理。本原型尚未在 Windows Word 實機測試。依據：[python-docx 註解](https://python-docx.readthedocs.io/en/latest/user/comments.html)、[Microsoft OOXML 修訂](https://learn.microsoft.com/en-us/office/open-xml/word/how-to-accept-all-revisions-in-a-word-processing-document)、[fflate](https://github.com/101arrowz/fflate)。
 
 
 ## 文件路由、欄位出處與欄寬
@@ -80,3 +89,5 @@ json-server 的 [v0 公開模組 API](https://github.com/typicode/json-server/tr
 欄位出處以欄位名稱、原文引句、來源與驗證狀態呈現。頁碼標示採印刷頁，PDF 連結採實體頁；缺原文與驗證資料不推定。`demo: true` 加 `demo_fields` 列出虛構補值欄位，介面只對這些值標「範例」，原文摘錄不加範例標記。`--logo` 支援 SVG 及點陣圖；SVG 拒絕 script、事件屬性與外部 href。公司圖檔只放私人交付。
 
 欄位出處可使用 clause_id 與 quote；明細點條號跳至 original_clauses 的原文。Markdown 匯入可附 original_status、original_clauses、demo 及 demo_fields，保存在主檔 metadata，與欄位分開。既有清冊尚無原檔時建議標 pending，不將清冊當作合約條款出處。備註的網址與原始來源字串不展開；來源以短標與連結呈現。
+
+AI 若需追蹤自身修改可選用 Git。

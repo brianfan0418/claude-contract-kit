@@ -37,3 +37,7 @@ Windows start.bat、瀏覽器啟動與 Edge 實機未測；如需正式使用，
 ## B14 接續
 
 展示版資料層、逐條出處與交付文案的實作及驗證集中於 [根目錄交接](../docs/HANDOFF.md#b14展示版與建議方案交付)。app.js、CSS 與驗證共用，build_demo.py 只加入 seed 及 BrowserDataSource；正式版仍經 REST，不改 db.json。
+
+## B15 接續
+
+Word 原生審閱、預設系統版本紀錄與驗證集中於 [根目錄交接](../docs/HANDOFF.md#b15word-原生審閱與系統版本紀錄)；工具用法與 OOXML 支援範圍依 README。編輯與接受／拒絕仍用 Word，網頁提供總覽、版本比對、AI 建議的新 Word 及下載。

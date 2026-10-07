@@ -1,6 +1,6 @@
 # 交接
 
-最後更新：2026-10-07 B14（台灣時間）
+最後更新：2026-10-07 B15（台灣時間）
 
 ## 現況
 
@@ -73,3 +73,13 @@ node dashboard/test_datasource.js             19 checks，0 failed
 驗證：根目錄 unittest 87 tests、dashboard 52 tests、Node 28 checks 通過。瀏覽器實際 file:// 新增案件，Page.reload 後仍在；出處連結聚焦對應條款；年報占位無出處表。MkDocs 字級四段並保存，VM 首頁、文件站與 API 200。私人證據保存在 ui-validation-b14.json 及 ui6/，不提交公開 repo。
 
 正式版仍使用 json-server 0.17.4 及本機 REST；第二階段需登入、案件權限、資料庫與備份。Windows 實機未測。下一個可執行動作：如需正式使用，可由您的 AI 依 dashboard/README.md 協助設定；開展示版則無需本機程式。
+
+## B15：Word 原生審閱與系統版本紀錄
+
+2026-10-07 使用者決定：第一階段編輯維持 Word；系統匯入原生 .docx 修訂／註解，案件分頁按條號整理作者、時間、原文、內容與已解決狀態，支援未解決篩選、下載及任選兩版逐條比對。AI 建議寫為 Word 原生註解／增刪修訂，產生新版本；原檔與舊版保留。
+
+`dashboard/tools/word_review.py` 以 lxml 讀寫 OOXML，inspect／suggest／import 分別讀總覽、另存新檔、經本機 REST 匯入。python-docx 1.2.0 建立原生註解測試檔。網頁同格式由內嵌 MIT fflate 與 XML DOM 處理，正式版及展示版共用。版本保存在 review_versions，包含 document_base64、clauses、word_items；不把 Word 原生註解改寫為網頁留言。w15:commentEx.done 支援解決狀態，未動封裝項目保留；唯一的單一文字 run 才接受 AI 建議。依賴與限制見 dashboard/README.md。
+
+交付環境預設不用 Git，版本與處理紀錄由系統負責；給人看的頁面移除 Git，AI README 只留可選用一句。既有開發 repo 的 commit／push 規則沿用。私人第二階段建議 Nextcloud＋ONLYOFFICE Docs＋合約服務，DocSpace 為替代方案；不部署第二階段，主機選擇由資訊部評估。官方 9.4 發布公告確認 Community 移除舊 20 連線限制，Automation API 仍只列 Developer 付費功能。
+
+已驗證：根目錄 discovery 93 tests、dashboard discovery 58 tests、Node 28 checks 全過。6 個新增測試含自製原生修訂／註解／解決狀態、唯一錨點拒收、原檔保留、新檔不覆寫、其他 OOXML 項目逐位元保留及 Word 套件重新讀取。Chromium file:// 實測匯入、重新整理保留、AI 建議檔匯入與新 Word 下載；Python 重新解析瀏覽器下載檔。CLI 原生 Word 經 VM REST 匯入並確認磁碟寫回，測後移除測試紀錄。VM 首頁、/docs、API 200；私人截圖 ui7 已逐張檢視。Windows Word／Edge 實機未測，跨格式、移動與格式修訂、複雜註解須另驗證。
