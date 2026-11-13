@@ -67,3 +67,14 @@ python3 -m unittest discover -s dashboard
 `dashboard/sample_register.csv` 為 13 筆虛構資料，涵蓋 11 類授權、國內／海外經銷、委託製造、原料供應、技術讓與、顧問、工程、租賃、貸款及保密案例；含多語、外幣、外國準據法與仲裁的虛構約定。所有名稱、日期及條款設定只供展示，不能作為公司條款立場。第一筆語言留空示範未提供欄位，其他案例顯示語言資料；未提供原文出處，不補造引用。以新版 CSV 重新產生面板即可查看案例。
 
 驗證結果、未實測項目與下一步見 [docs/HANDOFF.md](docs/HANDOFF.md)。MIT 授權見 [LICENSE](LICENSE)。
+
+## 公開原始碼提交檢查（維護者 VM）
+
+本機 Git `.git/hooks/pre-commit` 呼叫 `python3 "$HOME/workspace/tools/secret-scan.py"`，以 Gitleaks 官方預設規則掃描暫存區 diff。命中只輸出「檔名:行號:規則名」並阻止提交；工具故障也回報失敗。安裝依賴與規則依據見維護者 workspace 的 `tools/secret-scan-README.md`。此 hook 不隨 clone 複製，新 clone 在已安裝共用工具的 VM 上執行：
+
+```sh
+printf '%s\n' '#!/bin/sh' 'exec python3 "$HOME/workspace/tools/secret-scan.py"' > "$(git rev-parse --git-path hooks/pre-commit)"
+chmod +x "$(git rev-parse --git-path hooks/pre-commit)"
+```
+
+本 repo 原先無 Git pre-commit；既有 clone 若已有 hook，應將上述呼叫併入並保留原檢查。

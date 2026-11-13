@@ -1,5 +1,13 @@
 # 交接
 
+## 2026-11-13：公開 repo 暫存區密鑰掃描
+
+本機完整檢查：根目錄 discovery 96 tests 全數通過，無略過；包含實際 json-server 啟動的 3 項整合測試。於一次性 worktree 安裝 package-lock 的 npm 依賴；雲端 CI 未觸發。原始輸出見同次交付目錄 `contract-full-tests-final.txt`、`contract-dependencies.txt`。
+
+維護者 VM 已在本 repo 共用 `.git/hooks/pre-commit` 接入 workspace 的 `tools/secret-scan.py`。採 Gitleaks 官方 v8.30.1 binary 與完整內建預設規則，只掃 staged diff，輸出僅檔名、行號與規則名；命中 exit 1、工具故障 exit 2。Git 不追蹤 hooks，新 clone 的安裝方式集中於 README「公開原始碼提交檢查」。未接入其他私人 repo。
+
+已驗證：8 項 scanner CLI 測試、兩個公開 repo 各 5 次近期真實 diff 回放均通過；以本 repo 已安裝 hook 在隔離 repo 實際 commit，合成 AWS 格式金鑰被擋且未出現在輸出，乾淨內容 commit 成功。證據在維護者 workspace `data/dispatch-router/03954714f5e2ae4942e5/attempt-1/` 的 `secret-tests-final.txt`、`recent-diff-replay.json`、`hook-integration-tests.json`。後續重建 VM 時先依 workspace `tools/secret-scan-README.md` 核對官方下載檔 SHA256 並安裝 binary，再依本 repo README 安裝 hook。
+
 最後更新：2026-10-07 B18（台灣時間）
 
 ## 現況
